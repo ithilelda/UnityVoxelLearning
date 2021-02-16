@@ -13,6 +13,7 @@ public class ChunkSystem : MonoBehaviour
     public Material material;
     public bool useTasks;
     public bool fullUpdate;
+    public float frequency;
 
     public uint this[int x, int y, int z]
     {
@@ -62,16 +63,16 @@ public class ChunkSystem : MonoBehaviour
         ChunkDatas.Add(id, chunkData);
         var chunkView = go.AddComponent<ChunkView>();
         chunkView.GetComponent<MeshRenderer>().material = material;
-        chunkView.ChunkId = id;
         ChunkViews.Add(id, chunkView);
     }
 
     private void Start()
     {
         Noise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+        Noise.SetFrequency(frequency);
         for (int x = 0; x < 10; x++)
         {
-            for (int y = 0; y < 1; y++)
+            for (int y = 0; y < 10; y++)
             {
                 for (int z = 0; z < 10; z++)
                 {
@@ -99,7 +100,7 @@ public class ChunkSystem : MonoBehaviour
                 if (p.Value.IsDirty)
                 {
                     var view = ChunkViews[p.Key];
-                    view.RenderToMeshAsync(p.Value);
+                    view.RenderToMeshAsync(p.Key, p.Value);
                     p.Value.IsDirty = false;
                 }
             }
@@ -111,7 +112,7 @@ public class ChunkSystem : MonoBehaviour
                 if (p.Value.IsDirty)
                 {
                     var view = ChunkViews[p.Key];
-                    view.RenderToMesh(p.Value);
+                    view.RenderToMesh(p.Key, p.Value);
                     p.Value.IsDirty = false;
                 }
             }
