@@ -142,12 +142,14 @@ public class ChunkView : MonoBehaviour
         }
         return ret;
     }
-    public MeshData RenderToMesh(ChunkData data)
+    public void RenderToMesh(ChunkData data)
     {
-        return GenerateMesh(data);
+        var mesh = GenerateMesh(data);
+        AssignMesh(mesh);
     }
-    public Task<MeshData> RenderToMeshAsync(ChunkData data)
+    public async void RenderToMeshAsync(ChunkData data)
     {
-        return Task.Run(() => GenerateMesh(data));
+        var mesh = await Task.Run(() => GenerateMesh(data));
+        AssignMesh(mesh);
     }
 }

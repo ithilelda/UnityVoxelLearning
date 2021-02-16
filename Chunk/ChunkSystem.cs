@@ -12,6 +12,7 @@ public class ChunkSystem : MonoBehaviour
 
     public Material material;
     public bool useTasks;
+    public bool fullUpdate;
 
     public uint this[int x, int y, int z]
     {
@@ -57,6 +58,7 @@ public class ChunkSystem : MonoBehaviour
                 }
             }
         }
+        chunkData.IsDirty = true;
         ChunkDatas.Add(id, chunkData);
         var chunkView = go.AddComponent<ChunkView>();
         chunkView.GetComponent<MeshRenderer>().material = material;
@@ -82,29 +84,43 @@ public class ChunkSystem : MonoBehaviour
 
     private void Update()
     {
+        if (fullUpdate)
+        {
+            foreach (var p in ChunkDatas)
+            {
+                p.Value.IsDirty = true;
+            }
+        }
+        var start = Time.realtimeSinceStartup;
         if (useTasks)
         {
-            var tasks = new List<Task<MeshData>>();
-            foreach(var p in ChunkViews)
+            foreach (var p in ChunkDatas)
             {
-                tasks.Add(p.Value.RenderToMeshAsync(ChunkDatas[p.Key]));
-            }
-            Task.WaitAll(tasks.ToArray());
-            var i = 0;
-            foreach(var p in ChunkViews)
-            {
-                var curMesh = tasks[i].Result;
-                p.Value.AssignMesh(curMesh);
-                i++;
+                if (p.Value.IsDirty)
+                {
+                    var view = ChunkViews[p.Key];
+                    view.RenderToMeshAsync(p.Value);
+                    p.Value.IsDirty = false;
+                }
             }
         }
         else
         {
-            foreach(var p in ChunkViews)
+            foreach (var p in ChunkDatas)
             {
-                var meshData = p.Value.RenderToMesh(ChunkDatas[p.Key]);
-                p.Value.AssignMesh(meshData);
+                if (p.Value.IsDirty)
+                {
+                    var view = ChunkViews[p.Key];
+                    view.RenderToMesh(p.Value);
+                    p.Value.IsDirty = false;
+                }
             }
+        }
+        var end = Time.realtimeSinceStartup;
+        if (fullUpdate)
+        {
+            Debug.Log(end - start);
+            fullUpdate = false;
         }
     }
 }
