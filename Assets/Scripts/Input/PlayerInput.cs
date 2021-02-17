@@ -7,9 +7,10 @@ public class PlayerInput : MonoBehaviour
 {
     public float MovementSpeed;
     public float RotationSpeed;
+    public CharacterController Controller;
 
-    private Vector3 movement = new Vector3();
-    private Vector3 rotation = new Vector3();
+    private Vector3 movement;
+    private Vector3 rotation;
 
     public void OnMove(InputValue value)
     {
@@ -25,9 +26,10 @@ public class PlayerInput : MonoBehaviour
         rotation.y = v.x;
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
-        transform.Translate(movement * Time.deltaTime * MovementSpeed);
-        transform.eulerAngles += rotation * Time.deltaTime * RotationSpeed;
+        Controller.SimpleMove(transform.TransformDirection(movement) * MovementSpeed);
+        var trotate = transform.eulerAngles + rotation * Time.deltaTime * RotationSpeed;
+        transform.eulerAngles = trotate;
     }
 }

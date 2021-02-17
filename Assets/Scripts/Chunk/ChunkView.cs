@@ -7,9 +7,11 @@ using Unity.Collections;
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
+[RequireComponent(typeof(MeshCollider))]
 public class ChunkView : MonoBehaviour
 {
     private MeshFilter filter;
+    private MeshCollider meshCollider;
 
     private int ActualVertexCount = 0;
     private int ActualTriangleCount = 0;
@@ -19,6 +21,8 @@ public class ChunkView : MonoBehaviour
     {
         filter = GetComponent<MeshFilter>();
         filter.mesh = new Mesh();
+        meshCollider = GetComponent<MeshCollider>();
+        meshCollider.enabled = true;
     }
 
     public void AssignMesh(MeshData data)
@@ -29,6 +33,7 @@ public class ChunkView : MonoBehaviour
         mesh.SetTriangles(data.Triangles.ToArray(), 0);
         mesh.RecalculateNormals();
         filter.mesh = mesh;
+        meshCollider.sharedMesh = mesh;
     }
     public void AssignMesh(NativeMeshData data)
     {
