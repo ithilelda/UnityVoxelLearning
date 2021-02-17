@@ -20,18 +20,15 @@ public struct JobMeshGeneration : IJob
     {
         for (var x = 0; x < GameDefines.CHUNK_SIZE; x++)
         {
-            var xi = x * GameDefines.CHUNK_SIZE_SQUARED;
             for (var y = 0; y < GameDefines.CHUNK_SIZE; y++)
             {
-                var yi = xi + y * GameDefines.CHUNK_SIZE;
                 for (var z = 0; z < GameDefines.CHUNK_SIZE; z++)
                 {
-                    var index = yi + z;
-                    var voxelType = Data[index];
+                    var voxelType = Data[ChunkData.FlattenIndex(x, y, z)];
                     if (voxelType > 0u)
                     {
                         var pos = ChunkSystem.ToWorldPos(Id, x, y, z);
-                        if (!HasAdjacency(index, x, y, z, Vector3Int.forward))
+                        if (!HasAdjacency(x, y, z, Vector3Int.forward))
                         {
                             var cp = MeshData.Indices[0];
                             MeshData.AddVertex(pos + Vector3.forward);
@@ -45,7 +42,7 @@ public struct JobMeshGeneration : IJob
                             MeshData.AddTriangle(cp + 2);
                             MeshData.AddTriangle(cp + 3);
                         }
-                        if (!HasAdjacency(index, x, y, z, Vector3Int.back))
+                        if (!HasAdjacency(x, y, z, Vector3Int.back))
                         {
                             var cp = MeshData.Indices[0];
                             MeshData.AddVertex(pos + Vector3.zero);
@@ -59,7 +56,7 @@ public struct JobMeshGeneration : IJob
                             MeshData.AddTriangle(cp + 2);
                             MeshData.AddTriangle(cp + 3);
                         }
-                        if (!HasAdjacency(index, x, y, z, Vector3Int.up))
+                        if (!HasAdjacency(x, y, z, Vector3Int.up))
                         {
                             var cp = MeshData.Indices[0];
                             MeshData.AddVertex(pos + Vector3.up);
@@ -73,7 +70,7 @@ public struct JobMeshGeneration : IJob
                             MeshData.AddTriangle(cp + 2);
                             MeshData.AddTriangle(cp + 3);
                         }
-                        if (!HasAdjacency(index, x, y, z, Vector3Int.down))
+                        if (!HasAdjacency(x, y, z, Vector3Int.down))
                         {
                             var cp = MeshData.Indices[0];
                             MeshData.AddVertex(pos + Vector3.zero);
@@ -87,7 +84,7 @@ public struct JobMeshGeneration : IJob
                             MeshData.AddTriangle(cp + 2);
                             MeshData.AddTriangle(cp + 3);
                         }
-                        if (!HasAdjacency(index, x, y, z, Vector3Int.right))
+                        if (!HasAdjacency(x, y, z, Vector3Int.right))
                         {
                             var cp = MeshData.Indices[0];
                             MeshData.AddVertex(pos + Vector3.up + Vector3.right);
@@ -101,7 +98,7 @@ public struct JobMeshGeneration : IJob
                             MeshData.AddTriangle(cp + 2);
                             MeshData.AddTriangle(cp + 3);
                         }
-                        if (!HasAdjacency(index, x, y, z, Vector3Int.left))
+                        if (!HasAdjacency(x, y, z, Vector3Int.left))
                         {
                             var cp = MeshData.Indices[0];
                             MeshData.AddVertex(pos + Vector3.zero);
@@ -122,12 +119,43 @@ public struct JobMeshGeneration : IJob
         //Debug.Log($"inside job: {MeshData.Indices[0]}, {MeshData.Indices[1]}");
     }
 
-    private bool HasAdjacency(int index, int x, int y, int z, Vector3Int direction)
+    private bool HasAdjacency(int x, int y, int z, Vector3Int direction)
     {
         var chunkShift = ChunkData.GetChunkShift(x + direction.x, y + direction.y, z + direction.z);
         if (chunkShift.Equals(Vector3Int.zero))
         {
-            return Data[index + ChunkData.FlattenIndex(direction)] > 0u;
+            return Data[ChunkData.FlattenIndex(x, y, z) + ChunkData.FlattenIndex(direction)] > 0u;
+        }
+        else if (chunkShift.Equals(Vector3Int.left))
+        {
+            //if we are asking for perimeter blocks on the left.
+            var bi = GameDefines.CHUNK_SIZE_CUBED;
+            return Data[bi + ChunkData.FlattenIndex(0, y, z)] > 0u;
+        }
+        else if (chunkShift.Equals(Vector3Int.right))
+        {
+            var bi = GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED;
+            return Data[bi + ChunkData.FlattenIndex(0, y, z)] > 0u;
+        }
+        else if (chunkShift.Equals(Vector3Int.down))
+        {
+            var bi = GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED * 2;
+            return Data[bi + ChunkData.FlattenIndex(0, x, z)] > 0u;
+        }
+        else if (chunkShift.Equals(Vector3Int.up))
+        {
+            var bi = GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED * 3;
+            return Data[bi + ChunkData.FlattenIndex(0, x, z)] > 0u;
+        }
+        else if (chunkShift.Equals(Vector3Int.back))
+        {
+            var bi = GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED * 4;
+            return Data[bi + ChunkData.FlattenIndex(0, x, y)] > 0u;
+        }
+        else if (chunkShift.Equals(Vector3Int.forward))
+        {
+            var bi = GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED * 5;
+            return Data[bi + ChunkData.FlattenIndex(0, x, y)] > 0u;
         }
         else
         {

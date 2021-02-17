@@ -44,6 +44,7 @@ public class ChunkView : MonoBehaviour
         mesh.SetTriangles(data.Triangles.ToArray(), 0, data.Indices[1], 0);
         mesh.RecalculateNormals();
         filter.mesh = mesh;
+        meshCollider.sharedMesh = mesh;
     }
     
     public void RenderToMesh(ChunkId id, ChunkData data)
@@ -57,10 +58,8 @@ public class ChunkView : MonoBehaviour
         AssignMesh(mesh);
     }
 
-    public void RenderToMeshJob(ChunkId id, ChunkData data)
+    public void RenderToMeshJob(ChunkId id, NativeArray<uint> data)
     {
-        var cdata = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob);
-        cdata.CopyFrom(data.Voxels);
         var verticesSize = ActualVertexCount == 0 ? GameDefines.INITIAL_VERTEX_ARRAY_COUNT : ActualVertexCount;
         var trianglesSize = ActualTriangleCount == 0 ? GameDefines.INITIAL_TRIANGLE_ARRAY_COUNT : ActualTriangleCount;
         var mesh = new NativeMeshData
@@ -71,7 +70,7 @@ public class ChunkView : MonoBehaviour
         };
         var job = new JobMeshGeneration
         {
-            Data = cdata,
+            Data = data,
             MeshData = mesh,
             Id = id
         };
@@ -80,7 +79,7 @@ public class ChunkView : MonoBehaviour
         ActualVertexCount = mesh.Indices[0] + GameDefines.MESHGEN_ARRAY_HEADROOM;
         ActualTriangleCount = mesh.Indices[1] + GameDefines.MESHGEN_ARRAY_HEADROOM;
         AssignMesh(job.MeshData);
-        cdata.Dispose();
+        data.Dispose();
         mesh.Vertices.Dispose();
         mesh.Triangles.Dispose();
         mesh.Indices.Dispose();

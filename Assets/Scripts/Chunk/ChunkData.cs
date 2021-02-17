@@ -11,7 +11,7 @@ public class ChunkData : MonoBehaviour
 
     public uint[] Voxels { get; } = new uint[GameDefines.CHUNK_SIZE_CUBED];
 
-    public static int FlattenIndex(Vector3Int index) => index.x * GameDefines.CHUNK_SIZE_SQUARED + index.y * GameDefines.CHUNK_SIZE + index.z;
+    public static int FlattenIndex(Vector3Int localIndex) => localIndex.x * GameDefines.CHUNK_SIZE_SQUARED + localIndex.y * GameDefines.CHUNK_SIZE + localIndex.z;
     public static int FlattenIndex(int x, int y, int z) => x * GameDefines.CHUNK_SIZE_SQUARED + y * GameDefines.CHUNK_SIZE + z;
     public static int GetX(int index) => index >> (GameDefines.CHUNK_BIT * 2);
     public static int GetY(int index) => index >> GameDefines.CHUNK_BIT;
@@ -28,23 +28,23 @@ public class ChunkData : MonoBehaviour
         set { Voxels[FlattenIndex(x, y, z)] = value; }
     }
 
-    public uint this[Vector3Int index]
+    public uint this[Vector3Int localIndex]
     {
-        get { return Voxels[FlattenIndex(index)]; }
-        set { Voxels[FlattenIndex(index)] = value; }
+        get { return Voxels[FlattenIndex(localIndex)]; }
+        set { Voxels[FlattenIndex(localIndex)] = value; }
     }
 
-    public static Vector3Int GetChunkShift(Vector3Int index) => new Vector3Int((index.x & -16) / 16, (index.y & -16) / 16, (index.z & -16) / 16); // maps 16 -> 1, -1 -> -1, and 0~15 to 0.
+    public static Vector3Int GetChunkShift(Vector3Int localIndex) => new Vector3Int((localIndex.x & -16) / 16, (localIndex.y & -16) / 16, (localIndex.z & -16) / 16); // maps 16 -> 1, -1 -> -1, and 0~15 to 0.
     public static Vector3Int GetChunkShift(int x, int y, int z) => new Vector3Int((x & -16) / 16, (y & -16) / 16, (z & -16) / 16); // maps 16 -> 1, -1 -> -1, and 0~15 to 0.
-    public static Vector3Int GetActualIndex(Vector3Int index) => new Vector3Int(index.x & 15, index.y & 15, index.z & 15); // maps -1 -> 15, 16 -> 0, and 0~15 intact.
+    public static Vector3Int GetActualIndex(Vector3Int localIndex) => new Vector3Int(localIndex.x & 15, localIndex.y & 15, localIndex.z & 15); // maps -1 -> 15, 16 -> 0, and 0~15 intact.
     public static Vector3Int GetActualIndex(int x, int y, int z) => new Vector3Int(x & 15, y & 15, z & 15); // maps -1 -> 15, 16 -> 0, and 0~15 intact.
     public bool HasAdjacency(int x, int y, int z, Vector3Int direction)
     {
         return HasAdjacency(new Vector3Int(x, y, z), direction);
     }
-    public bool HasAdjacency(Vector3Int index, Vector3Int direction)
+    public bool HasAdjacency(Vector3Int localIndex, Vector3Int direction)
     {
-        var newIndex = index + direction;
+        var newIndex = localIndex + direction;
         var chunkShift = GetChunkShift(newIndex);
         if (chunkShift.Equals(Vector3Int.zero))
         {
@@ -55,15 +55,4 @@ public class ChunkData : MonoBehaviour
             return ChunkSystem.ChunkDatas.TryGetValue(ChunkId.Shift(chunkShift), out var chunk) && chunk[GetActualIndex(newIndex)] > 0u;
         }
     }
-
-    private void Start()
-    {
-        
-    }
-
-    private void Update()
-    {
-
-    }
-
 }

@@ -28,7 +28,14 @@ public class PlayerInput : MonoBehaviour
 
     private void FixedUpdate()
     {
-        Controller.SimpleMove(transform.TransformDirection(movement) * MovementSpeed);
+        if (Controller.enabled)
+        {
+            Controller.SimpleMove(transform.TransformDirection(movement) * MovementSpeed);
+        }
+        else
+        {
+            transform.Translate(movement * MovementSpeed * Time.deltaTime);
+        }
         var trotate = transform.eulerAngles + rotation * Time.deltaTime * RotationSpeed;
         transform.eulerAngles = trotate;
     }
