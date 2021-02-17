@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using Unity.Collections;
 
 public class ChunkSystem : MonoBehaviour
 {
@@ -11,7 +12,8 @@ public class ChunkSystem : MonoBehaviour
     public Dictionary<ChunkId, ChunkView> ChunkViews { get; } = new Dictionary<ChunkId, ChunkView>();
 
     public Material material;
-    public bool useTasks;
+    [SerializeField, Range(0,2)]
+    public int MeshingType;
     public bool fullUpdate;
     public float frequency;
 
@@ -93,29 +95,41 @@ public class ChunkSystem : MonoBehaviour
             }
         }
         var start = Time.realtimeSinceStartup;
-        if (useTasks)
+        switch (MeshingType)
         {
-            foreach (var p in ChunkDatas)
-            {
-                if (p.Value.IsDirty)
+            case 1:
+                foreach (var p in ChunkDatas)
                 {
-                    var view = ChunkViews[p.Key];
-                    view.RenderToMeshAsync(p.Key, p.Value);
-                    p.Value.IsDirty = false;
+                    if (p.Value.IsDirty)
+                    {
+                        var view = ChunkViews[p.Key];
+                        view.RenderToMeshAsync(p.Key, p.Value);
+                        p.Value.IsDirty = false;
+                    }
                 }
-            }
-        }
-        else
-        {
-            foreach (var p in ChunkDatas)
-            {
-                if (p.Value.IsDirty)
+                break;
+            case 2:
+                foreach (var p in ChunkDatas)
                 {
-                    var view = ChunkViews[p.Key];
-                    view.RenderToMesh(p.Key, p.Value);
-                    p.Value.IsDirty = false;
+                    if (p.Value.IsDirty)
+                    {
+                        var view = ChunkViews[p.Key];
+                        view.RenderToMeshJob(p.Key, p.Value);
+                        p.Value.IsDirty = false;
+                    }
                 }
-            }
+                break;
+            default:
+                foreach (var p in ChunkDatas)
+                {
+                    if (p.Value.IsDirty)
+                    {
+                        var view = ChunkViews[p.Key];
+                        view.RenderToMesh(p.Key, p.Value);
+                        p.Value.IsDirty = false;
+                    }
+                }
+                break;
         }
         var end = Time.realtimeSinceStartup;
         if (fullUpdate)

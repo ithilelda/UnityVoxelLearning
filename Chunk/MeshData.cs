@@ -7,17 +7,6 @@ public class MeshData
     public List<Vector3> Vertices = new List<Vector3>();
     public List<int> Triangles = new List<int>();
 
-
-    private static Vector3[] cubeVertices = new[] {
-        Vector3.zero,
-        Vector3.up,
-        Vector3.up + Vector3.right,
-        Vector3.right,
-        Vector3.forward,
-        Vector3.up + Vector3.forward,
-        Vector3.one,
-        Vector3.right + Vector3.forward,
-    };
     public static MeshData GenerateMesh(ChunkId id, ChunkData chunkData)
     {
         var ret = new MeshData();
@@ -36,10 +25,10 @@ public class MeshData
                         if (!chunkData.HasAdjacency(index, Vector3Int.forward))
                         {
                             var cp = ret.Vertices.Count;
-                            ret.Vertices.Add(pos + cubeVertices[4]);
-                            ret.Vertices.Add(pos + cubeVertices[7]);
-                            ret.Vertices.Add(pos + cubeVertices[6]);
-                            ret.Vertices.Add(pos + cubeVertices[5]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[4]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[7]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[6]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[5]);
                             ret.Triangles.Add(cp + 0);
                             ret.Triangles.Add(cp + 1);
                             ret.Triangles.Add(cp + 2);
@@ -50,10 +39,10 @@ public class MeshData
                         if (!chunkData.HasAdjacency(index, Vector3Int.back))
                         {
                             var cp = ret.Vertices.Count;
-                            ret.Vertices.Add(pos + cubeVertices[0]);
-                            ret.Vertices.Add(pos + cubeVertices[1]);
-                            ret.Vertices.Add(pos + cubeVertices[2]);
-                            ret.Vertices.Add(pos + cubeVertices[3]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[0]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[1]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[2]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[3]);
                             ret.Triangles.Add(cp + 0);
                             ret.Triangles.Add(cp + 1);
                             ret.Triangles.Add(cp + 2);
@@ -64,10 +53,10 @@ public class MeshData
                         if (!chunkData.HasAdjacency(index, Vector3Int.up))
                         {
                             var cp = ret.Vertices.Count;
-                            ret.Vertices.Add(pos + cubeVertices[1]);
-                            ret.Vertices.Add(pos + cubeVertices[5]);
-                            ret.Vertices.Add(pos + cubeVertices[6]);
-                            ret.Vertices.Add(pos + cubeVertices[2]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[1]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[5]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[6]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[2]);
                             ret.Triangles.Add(cp + 0);
                             ret.Triangles.Add(cp + 1);
                             ret.Triangles.Add(cp + 2);
@@ -78,10 +67,10 @@ public class MeshData
                         if (!chunkData.HasAdjacency(index, Vector3Int.down))
                         {
                             var cp = ret.Vertices.Count;
-                            ret.Vertices.Add(pos + cubeVertices[0]);
-                            ret.Vertices.Add(pos + cubeVertices[3]);
-                            ret.Vertices.Add(pos + cubeVertices[7]);
-                            ret.Vertices.Add(pos + cubeVertices[4]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[0]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[3]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[7]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[4]);
                             ret.Triangles.Add(cp + 0);
                             ret.Triangles.Add(cp + 1);
                             ret.Triangles.Add(cp + 2);
@@ -92,10 +81,10 @@ public class MeshData
                         if (!chunkData.HasAdjacency(index, Vector3Int.right))
                         {
                             var cp = ret.Vertices.Count;
-                            ret.Vertices.Add(pos + cubeVertices[2]);
-                            ret.Vertices.Add(pos + cubeVertices[6]);
-                            ret.Vertices.Add(pos + cubeVertices[7]);
-                            ret.Vertices.Add(pos + cubeVertices[3]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[2]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[6]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[7]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[3]);
                             ret.Triangles.Add(cp + 0);
                             ret.Triangles.Add(cp + 1);
                             ret.Triangles.Add(cp + 2);
@@ -106,10 +95,10 @@ public class MeshData
                         if (!chunkData.HasAdjacency(index, Vector3Int.left))
                         {
                             var cp = ret.Vertices.Count;
-                            ret.Vertices.Add(pos + cubeVertices[0]);
-                            ret.Vertices.Add(pos + cubeVertices[4]);
-                            ret.Vertices.Add(pos + cubeVertices[5]);
-                            ret.Vertices.Add(pos + cubeVertices[1]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[0]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[4]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[5]);
+                            ret.Vertices.Add(pos + GameDefines.CubeVertices[1]);
                             ret.Triangles.Add(cp + 0);
                             ret.Triangles.Add(cp + 1);
                             ret.Triangles.Add(cp + 2);
