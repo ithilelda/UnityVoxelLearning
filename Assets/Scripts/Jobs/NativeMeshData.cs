@@ -13,6 +13,13 @@ public struct NativeMeshData
     public NativeArray<int> Triangles;
     public NativeArray<int> Indices;
 
+    public void Dispose()
+    {
+        Vertices.Dispose();
+        Triangles.Dispose();
+        Indices.Dispose();
+    }
+
     public void AddVertex(Vector3 vertex)
     {
         if (Indices[0] >= Vertices.Length)

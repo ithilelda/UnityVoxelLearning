@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using Unity.Jobs;
 using Unity.Collections;
 
 public class ChunkSystem : MonoBehaviour
@@ -11,11 +12,14 @@ public class ChunkSystem : MonoBehaviour
     public Dictionary<ChunkId, ChunkData> ChunkDatas { get; } = new Dictionary<ChunkId, ChunkData>();
     public Dictionary<ChunkId, ChunkView> ChunkViews { get; } = new Dictionary<ChunkId, ChunkView>();
 
-    public Material material;
     [SerializeField, Range(0,2)]
     public int MeshingType;
     public bool fullUpdate;
     public float frequency;
+    public Material material;
+
+    private Dictionary<ChunkId, JobMeshGeneration> jobs = new Dictionary<ChunkId, JobMeshGeneration>();
+    private Dictionary<ChunkId, JobHandle> handles = new Dictionary<ChunkId, JobHandle>();
 
     public static ChunkId FromWorldPos(int x, int y, int z)
     {
@@ -180,15 +184,7 @@ public class ChunkSystem : MonoBehaviour
                 }
                 break;
             case 2:
-                foreach (var p in ChunkDatas)
-                {
-                    if (p.Value.IsDirty)
-                    {
-                        var view = ChunkViews[p.Key];
-                        view.RenderToMeshJob(p.Key, GetChunkWithPerimeterForJob(p.Key));
-                        p.Value.IsDirty = false;
-                    }
-                }
+                ScheduleMeshJob();
                 break;
             default:
                 foreach (var p in ChunkDatas)
@@ -208,5 +204,52 @@ public class ChunkSystem : MonoBehaviour
             Debug.Log(end - start);
             fullUpdate = false;
         }
+        foreach(var p in ChunkViews)
+        {
+            if(handles.TryGetValue(p.Key, out var handle))
+            {
+                if (handle.IsCompleted)
+                {
+                    var view = p.Value;
+                    handle.Complete();
+                    var job = jobs[p.Key];
+                    view.ActualVertexCount = job.MeshData.Indices[0] + GameDefines.MESHGEN_ARRAY_HEADROOM;
+                    view.ActualTriangleCount = job.MeshData.Indices[1] + GameDefines.MESHGEN_ARRAY_HEADROOM;
+                    view.AssignMesh(job.MeshData);
+                    job.Dispose();
+                    jobs.Remove(p.Key);
+                    handles.Remove(p.Key);
+                }
+            }
+        }
+    }
+
+    private void ScheduleMeshJob()
+    {
+        foreach (var p in ChunkDatas)
+        {
+            if (p.Value.IsDirty)
+            {
+                var view = ChunkViews[p.Key];
+                var verticesSize = view.ActualVertexCount == 0 ? GameDefines.INITIAL_VERTEX_ARRAY_COUNT : view.ActualVertexCount;
+                var trianglesSize = view.ActualTriangleCount == 0 ? GameDefines.INITIAL_TRIANGLE_ARRAY_COUNT : view.ActualTriangleCount;
+                var mesh = new NativeMeshData
+                {
+                    Vertices = new NativeArray<Vector3>(verticesSize, Allocator.TempJob),
+                    Triangles = new NativeArray<int>(trianglesSize, Allocator.TempJob),
+                    Indices = new NativeArray<int>(2, Allocator.TempJob)
+                };
+                var job = new JobMeshGeneration
+                {
+                    Data = GetChunkWithPerimeterForJob(p.Key),
+                    MeshData = mesh,
+                    Id = p.Key
+                };
+                jobs.Add(p.Key, job);
+                handles[p.Key] = job.Schedule();
+                p.Value.IsDirty = false;
+            }
+        }
+        JobHandle.ScheduleBatchedJobs();
     }
 }

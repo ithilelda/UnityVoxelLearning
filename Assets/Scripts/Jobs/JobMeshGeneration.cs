@@ -16,6 +16,12 @@ public struct JobMeshGeneration : IJob
 
     public NativeMeshData MeshData;
 
+    public void Dispose()
+    {
+        Data.Dispose();
+        MeshData.Dispose();
+    }
+
     public void Execute()
     {
         for (var x = 0; x < GameDefines.CHUNK_SIZE; x++)

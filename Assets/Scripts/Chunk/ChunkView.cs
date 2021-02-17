@@ -13,8 +13,8 @@ public class ChunkView : MonoBehaviour
     private MeshFilter filter;
     private MeshCollider meshCollider;
 
-    private int ActualVertexCount = 0;
-    private int ActualTriangleCount = 0;
+    public int ActualVertexCount = 0;
+    public int ActualTriangleCount = 0;
 
     // Start is called before the first frame update
     private void Start()
@@ -58,30 +58,4 @@ public class ChunkView : MonoBehaviour
         AssignMesh(mesh);
     }
 
-    public void RenderToMeshJob(ChunkId id, NativeArray<uint> data)
-    {
-        var verticesSize = ActualVertexCount == 0 ? GameDefines.INITIAL_VERTEX_ARRAY_COUNT : ActualVertexCount;
-        var trianglesSize = ActualTriangleCount == 0 ? GameDefines.INITIAL_TRIANGLE_ARRAY_COUNT : ActualTriangleCount;
-        var mesh = new NativeMeshData
-        {
-            Vertices = new NativeArray<Vector3>(verticesSize, Allocator.TempJob),
-            Triangles = new NativeArray<int>(trianglesSize, Allocator.TempJob),
-            Indices = new NativeArray<int>(2, Allocator.TempJob)
-        };
-        var job = new JobMeshGeneration
-        {
-            Data = data,
-            MeshData = mesh,
-            Id = id
-        };
-        var handle = job.Schedule();
-        handle.Complete();
-        ActualVertexCount = mesh.Indices[0] + GameDefines.MESHGEN_ARRAY_HEADROOM;
-        ActualTriangleCount = mesh.Indices[1] + GameDefines.MESHGEN_ARRAY_HEADROOM;
-        AssignMesh(job.MeshData);
-        data.Dispose();
-        mesh.Vertices.Dispose();
-        mesh.Triangles.Dispose();
-        mesh.Indices.Dispose();
-    }
 }
