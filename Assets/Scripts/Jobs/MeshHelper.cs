@@ -18,16 +18,16 @@ public static class MeshHelper
         var curChunk = chunkDatas[id];
         // we first copy the entire chunk data array into the native array contiguously. This is the data we are going to loop through.
         NativeArray<uint>.Copy(curChunk.Voxels, ret, GameDefines.CHUNK_SIZE_CUBED);
-        // then, for every neighbor chunk, we fill in the destination space with data. If the chunk is not loaded, we skip the face and leave the number as the default value indicating air block.
+        // then, for every neighbor chunk, we fill in the destination space with data. If the chunk is not loaded, we skip the face and leave the number as the default value indicating air block, in turn showing the corresponding faces without culling.
         if (chunkDatas.TryGetValue(id.Shift(Vector3Int.left), out curChunk))
         {
-            // we need the right face blocks(x = CHUNK_SIZE - 1, or known as CHUNK_MASK) of the left chunk.
+            // we need the right face voxels(x = CHUNK_SIZE - 1, or known as CHUNK_MASK) of the left chunk.
             // since they are contiguous in our chunk data array, we can just memcpy them.
             NativeArray<uint>.Copy(curChunk.Voxels, ChunkData.FlattenIndex(GameDefines.CHUNK_MASK, 0, 0), ret, GameDefines.CHUNK_SIZE_CUBED, GameDefines.CHUNK_SIZE_SQUARED);
         }
         if (chunkDatas.TryGetValue(id.Shift(Vector3Int.right), out curChunk))
         {
-            // we need the left face blocks(x = 0) of the right chunk, you get the idea.
+            // we need the left face voxels(x = 0) of the right chunk, you get the idea.
             // since they are contiguous in our chunk data array, we can just memcpy them.
             NativeArray<uint>.Copy(curChunk.Voxels, 0, ret, GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED, GameDefines.CHUNK_SIZE_SQUARED);
         }
@@ -81,6 +81,14 @@ public static class MeshHelper
                 }
             }
         }
+        // thus, the resulting perimeter voxels are stored as follows:
+        /*
+         * 1. they were stored in the order left, right, down, up, back, forward.
+         * 2. there's 16x16 planar voxels in each storage section.
+         * 3. the other two axes are used to retrieve the corresponding voxel that has the same 2-axes coordinate.
+         * 4. the coordinates are flattened in order of x, y, z. for example, if you want to retrieve data on the up face (moving along y), x and z are used to retrieve data, and corresponding coordinate is (x, z).
+         * 5. I have all the methods coded in this very class, so that there is no need for anyone outside to know the details.
+         */
 
         return ret;
     }
@@ -134,7 +142,7 @@ public static class MeshHelper
         }
         else if (chunkShift.Equals(Left))
         {
-            //if we are asking for perimeter blocks on the left.
+            //if we are asking for perimeter voxels on the left.
             var bi = GameDefines.CHUNK_SIZE_CUBED;
             return perimeterData[bi + Flatten2DIndexJobs(index.y, index.z)] > 0u;
         }
