@@ -7,7 +7,7 @@ using UnityEngine;
 using Unity.Collections;
 
 
-public struct NativeMeshData
+public partial struct NativeMeshData
 {
     public NativeArray<Vector3> Vertices;
     public NativeArray<int> Triangles;
@@ -20,27 +20,56 @@ public struct NativeMeshData
         Indices.Dispose();
     }
 
-    public void AddVertex(Vector3 vertex)
+    public void AddFace(Vector3 offset, Facing facing, Vector3 size)
     {
-        if (Indices[0] >= Vertices.Length)
-        {
-            var tv = new NativeArray<Vector3>(Indices[0] + GameDefines.MESHGEN_ARRAY_HEADROOM, Allocator.TempJob);
-            tv.CopyFrom(Vertices);
-            Vertices.Dispose();
-            Vertices = tv;
-        }
-        Vertices[Indices[0]++] = vertex;
-    }
+        var cp = Indices[0];
+        Triangles[Indices[1]++] = cp + 0;
+        Triangles[Indices[1]++] = cp + 1;
+        Triangles[Indices[1]++] = cp + 2;
+        Triangles[Indices[1]++] = cp + 0;
+        Triangles[Indices[1]++] = cp + 2;
+        Triangles[Indices[1]++] = cp + 3;
 
-    public void AddTriangle(int trianglePoint)
-    {
-        if (Indices[1] >= Triangles.Length)
+        switch (facing)
         {
-            var tt = new NativeArray<int>(Indices[1] + GameDefines.MESHGEN_ARRAY_HEADROOM, Allocator.TempJob);
-            tt.CopyFrom(Triangles);
-            Triangles.Dispose();
-            Triangles = tt;
+            case Facing.FORWARD:
+                Vertices[Indices[0]++] = offset + Vector3.forward;
+                Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.forward;
+                Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.up * size.y + Vector3.forward;
+                Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.forward;
+                break;
+            case Facing.BACK:
+                Vertices[Indices[0]++] = offset + Vector3.zero;
+                Vertices[Indices[0]++] = offset + Vector3.up * size.y;
+                Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.right * size.x;
+                Vertices[Indices[0]++] = offset + Vector3.right * size.x;
+                break;
+            case Facing.TOP:
+                Vertices[Indices[0]++] = offset + Vector3.up;
+                Vertices[Indices[0]++] = offset + Vector3.up + Vector3.forward * size.z;
+                Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.up + Vector3.forward * size.z;
+                Vertices[Indices[0]++] = offset + Vector3.up + Vector3.right * size.x;
+                break;
+            case Facing.BOTTOM:
+                Vertices[Indices[0]++] = offset + Vector3.zero;
+                Vertices[Indices[0]++] = offset + Vector3.right * size.x;
+                Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.forward * size.z;
+                Vertices[Indices[0]++] = offset + Vector3.forward * size.z;
+                break;
+            case Facing.RIGHT:
+                Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.right;
+                Vertices[Indices[0]++] = offset + Vector3.right + Vector3.up * size.y + Vector3.forward * size.z;
+                Vertices[Indices[0]++] = offset + Vector3.right + Vector3.forward * size.z;
+                Vertices[Indices[0]++] = offset + Vector3.right;
+                break;
+            case Facing.LEFT:
+                Vertices[Indices[0]++] = offset + Vector3.zero;
+                Vertices[Indices[0]++] = offset + Vector3.forward * size.z;
+                Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.forward * size.z;
+                Vertices[Indices[0]++] = offset + Vector3.up * size.y;
+                break;
+            default:
+                break;
         }
-        Triangles[Indices[1]++] = trianglePoint;
     }
 }

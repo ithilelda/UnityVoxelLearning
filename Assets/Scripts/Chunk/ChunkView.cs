@@ -11,10 +11,8 @@ using Unity.Collections;
 public class ChunkView : MonoBehaviour
 {
     private MeshFilter filter;
+    private MeshRenderer meshRenderer;
     private MeshCollider meshCollider;
-
-    public int ActualVertexCount = 0;
-    public int ActualTriangleCount = 0;
 
     // Start is called before the first frame update
     private void Start()
@@ -23,6 +21,8 @@ public class ChunkView : MonoBehaviour
         filter.mesh = new Mesh();
         meshCollider = GetComponent<MeshCollider>();
         meshCollider.enabled = true;
+        meshRenderer = GetComponent<MeshRenderer>();
+        meshRenderer.material = Resources.Load<Material>("Materials/Blocks");
     }
 
     public void AssignMesh(MeshData data)
