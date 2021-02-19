@@ -33,13 +33,7 @@ public struct ChunkId : IEquatable<ChunkId>
 
     public override int GetHashCode()
     {
-        unchecked
-        {
-            var hashCode = x;
-            hashCode = (hashCode * 397) ^ y;
-            hashCode = (hashCode * 397) ^ z;
-            return hashCode;
-        }
+        return MortonCode.Encode(x, y, z);
     }
 
     public static bool operator ==(ChunkId left, ChunkId right)
