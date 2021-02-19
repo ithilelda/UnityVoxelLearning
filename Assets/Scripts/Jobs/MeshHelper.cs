@@ -117,10 +117,6 @@ public static class MeshHelper
     public static readonly int4 Back = new int4(0, 0, -1, 0);
 
     // the methods to be used inside jobs. They contain the Jobs suffix, and has special optimizations.
-    // maps 16 -> 1, -1 -> -1, and 0~15 to 0.
-    public static int4 GetChunkShiftJobs(int4 localIndex) => new int4((localIndex.x & -16) / 16, (localIndex.y & -16) / 16, (localIndex.z & -16) / 16, 0);
-    // the 3d indices are now morton coded.
-    public static int FlattenIndexJobs(int4 localIndex) => ChunkData.FlattenIndex(localIndex.x, localIndex.y, localIndex.z);
     // 2d indices are not morton coded!
     public static int Flatten2DIndexJobs(int a, int b) => a * GameDefines.CHUNK_SIZE + b;
     public static int4 FacingToDirection(Facing f)
@@ -151,10 +147,10 @@ public static class MeshHelper
     }
     public static bool FaceIsObscuredJobs(NativeArray<uint> perimeterData, int4 index, int4 direction)
     {
-        var chunkShift = GetChunkShiftJobs(index + direction);
+        var chunkShift = ChunkData.GetChunkShift(index + direction);
         if (chunkShift.Equals(int4.zero))
         {
-            return perimeterData[FlattenIndexJobs(index + direction)] > 0u;
+            return perimeterData[ChunkData.FlattenIndex(index + direction)] > 0u;
         }
         else if (chunkShift.Equals(Left))
         {

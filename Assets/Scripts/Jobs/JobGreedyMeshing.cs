@@ -48,7 +48,7 @@ public struct JobGreedyMeshing : IJob
                     for (startPos[axis2] = 0; startPos[axis2] < GameDefines.CHUNK_SIZE; startPos[axis2]++)
                     {
                         // this voxel at this position is now the candidate for a merge, so we call it the start.
-                        var startVoxel = Data[MeshHelper.FlattenIndexJobs(startPos)];
+                        var startVoxel = Data[ChunkData.FlattenIndex(startPos)];
                         var startIndex = MeshHelper.Flatten2DIndexJobs(startPos[axis1], startPos[axis2]);
                         // if the voxel has been merged, or it is air, or the face we are working on is obscured, we skip it.
                         if (merged[startIndex] || startVoxel == 0u || MeshHelper.FaceIsObscuredJobs(Data, startPos, direction))
@@ -132,7 +132,7 @@ public struct JobGreedyMeshing : IJob
      */
     public bool IsMergeable(int4 curPos, uint targetVoxel, int4 direction)
     {
-        var curVoxel = Data[MeshHelper.FlattenIndexJobs(curPos)];
+        var curVoxel = Data[ChunkData.FlattenIndex(curPos)];
         return curVoxel != 0u && curVoxel == targetVoxel && !MeshHelper.FaceIsObscuredJobs(Data, curPos, direction);
     }
 }
