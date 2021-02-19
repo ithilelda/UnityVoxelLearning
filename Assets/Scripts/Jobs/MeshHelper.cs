@@ -14,7 +14,7 @@ public static class MeshHelper
     // These methods are used in the main thread, so no burst optimization, but also no constraints.
     public static NativeArray<uint> GetChunkWithPerimeterForJob(Dictionary<ChunkId, ChunkData> chunkDatas, ChunkId id)
     {
-        var ret = new NativeArray<uint>(GameDefines.CHUNK_PERIMETER_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+        var ret = new NativeArray<uint>(GameDefines.CHUNK_PERIMETER_SIZE, Allocator.TempJob, NativeArrayOptions.ClearMemory);
         var curChunk = chunkDatas[id];
         // we first copy the entire chunk data array into the native array contiguously. This is the data we are going to loop through.
         NativeArray<uint>.Copy(curChunk.Voxels, ret, GameDefines.CHUNK_SIZE_CUBED);
@@ -22,14 +22,28 @@ public static class MeshHelper
         if (chunkDatas.TryGetValue(id.Shift(Vector3Int.left), out curChunk))
         {
             // we need the right face voxels(x = CHUNK_SIZE - 1, or known as CHUNK_MASK) of the left chunk.
-            // since they are contiguous in our chunk data array, we can just memcpy them.
-            NativeArray<uint>.Copy(curChunk.Voxels, ChunkData.FlattenIndex(GameDefines.CHUNK_MASK, 0, 0), ret, GameDefines.CHUNK_SIZE_CUBED, GameDefines.CHUNK_SIZE_SQUARED);
+            var bi = GameDefines.CHUNK_SIZE_CUBED;
+            for (int y = 0; y < GameDefines.CHUNK_SIZE; y++)
+            {
+                var outer = y * GameDefines.CHUNK_SIZE;
+                for (int z = 0; z < GameDefines.CHUNK_SIZE; z++)
+                {
+                    ret[bi + outer + z] = curChunk[GameDefines.CHUNK_MASK, y, z];
+                }
+            }
         }
         if (chunkDatas.TryGetValue(id.Shift(Vector3Int.right), out curChunk))
         {
             // we need the left face voxels(x = 0) of the right chunk, you get the idea.
-            // since they are contiguous in our chunk data array, we can just memcpy them.
-            NativeArray<uint>.Copy(curChunk.Voxels, 0, ret, GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED, GameDefines.CHUNK_SIZE_SQUARED);
+            var bi = GameDefines.CHUNK_SIZE_CUBED + GameDefines.CHUNK_SIZE_SQUARED;
+            for (int y = 0; y < GameDefines.CHUNK_SIZE; y++)
+            {
+                var outer = y * GameDefines.CHUNK_SIZE;
+                for (int z = 0; z < GameDefines.CHUNK_SIZE; z++)
+                {
+                    ret[bi + outer + z] = curChunk[0, y, z];
+                }
+            }
         }
         // filling in the y shifted chunk datas.
         if (chunkDatas.TryGetValue(id.Shift(Vector3Int.down), out curChunk))
@@ -105,7 +119,9 @@ public static class MeshHelper
     // the methods to be used inside jobs. They contain the Jobs suffix, and has special optimizations.
     // maps 16 -> 1, -1 -> -1, and 0~15 to 0.
     public static int4 GetChunkShiftJobs(int4 localIndex) => new int4((localIndex.x & -16) / 16, (localIndex.y & -16) / 16, (localIndex.z & -16) / 16, 0);
-    public static int FlattenIndexJobs(int4 localIndex) => localIndex.x * GameDefines.CHUNK_SIZE_SQUARED + localIndex.y * GameDefines.CHUNK_SIZE + localIndex.z;
+    // the 3d indices are now morton coded.
+    public static int FlattenIndexJobs(int4 localIndex) => ChunkData.FlattenIndex(localIndex.x, localIndex.y, localIndex.z);
+    // 2d indices are not morton coded!
     public static int Flatten2DIndexJobs(int a, int b) => a * GameDefines.CHUNK_SIZE + b;
     public static int4 FacingToDirection(Facing f)
     {
@@ -138,7 +154,7 @@ public static class MeshHelper
         var chunkShift = GetChunkShiftJobs(index + direction);
         if (chunkShift.Equals(int4.zero))
         {
-            return perimeterData[FlattenIndexJobs(index) + FlattenIndexJobs(direction)] > 0u;
+            return perimeterData[FlattenIndexJobs(index + direction)] > 0u;
         }
         else if (chunkShift.Equals(Left))
         {

@@ -10,9 +10,14 @@ using System.Runtime.CompilerServices;
 public static class MortonCode
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int Encode(int x, int y, int z)
+    public static int EncodeChunkId(int x, int y, int z)
     {
         return (Part1024By2(x) << 2) | (Part1024By2(y) << 1) | Part1024By2(z);
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int EncodeVoxel(int x, int y, int z)
+    {
+        return (Part16By2(x) << 2) | (Part16By2(y) << 1) | Part16By2(z);
     }
 
     // inserting two 0s between each bit for a 10 bit number (max 1024). credit: fgiesen.wordpress.com @The ryg blog.
@@ -26,6 +31,15 @@ public static class MortonCode
         t = (t ^ (t << 2)) & 0x09249249;
         return (int)t;
     }
+    // inserting two 0s between each bit for a 4 bit number (max 16).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int Part16By2(int a)
+    {
+        long t = a & 0x00f;
+        t = (t ^ (t << 4)) & 0x0c3;
+        t = (t ^ (t << 2)) & 0x249;
+        return (int)t;
+    }
     // packing. same credit.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int Compact1024By2(int a)
@@ -35,6 +49,14 @@ public static class MortonCode
         t = (t ^ (t >> 4)) & 0x0300f00f;
         t = (t ^ (t >> 8)) & 0xff0000ff;
         t = (t ^ (t >> 16)) & 0x000003ff;
+        return (int)t;
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int Compact16By2(int a)
+    {
+        long t = a & 0x249;
+        t = (t ^ (t >> 2)) & 0x0c3;
+        t = (t ^ (t >> 4)) & 0x00f;
         return (int)t;
     }
 }
