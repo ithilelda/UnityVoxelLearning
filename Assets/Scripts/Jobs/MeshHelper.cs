@@ -12,6 +12,8 @@ using UnityEngine;
 public static class MeshHelper
 {
     // These methods are used in the main thread, so no burst optimization, but also no constraints.
+    // I tried to not use this method to setup the specialized chunk perimeter arrays and instead just feed the jobs with vanilla chunk data, but the greedymeshing algorithm's performance dropped from ~86ms to ~138ms, a drastical degrade!
+    // guessing the main problem is that 7 chunk datas are too large for CPU cache and there are significantly more cache misses than this compact array containing only data we need.
     public static NativeArray<uint> GetChunkWithPerimeterForJob(Dictionary<ChunkId, ChunkData> chunkDatas, ChunkId id)
     {
         var ret = new NativeArray<uint>(GameDefines.CHUNK_PERIMETER_SIZE, Allocator.TempJob, NativeArrayOptions.ClearMemory);
