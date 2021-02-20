@@ -32,7 +32,7 @@ public partial struct NativeMeshData
 
         switch (facing)
         {
-            case Facing.FORWARD:
+            case Facing.FRONT:
                 Vertices[Indices[0]++] = offset + Vector3.forward;
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.forward;
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.up * size.y + Vector3.forward;

@@ -5,5 +5,5 @@
     BACK,
     LEFT,
     BOTTOM,
-    FORWARD,
+    FRONT,
 }

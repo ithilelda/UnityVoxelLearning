@@ -22,6 +22,9 @@ public class ChunkSystem : MonoBehaviour
     private Dictionary<ChunkId, JobGreedyMeshing> greedyMeshingJobs = new Dictionary<ChunkId, JobGreedyMeshing>();
     private Dictionary<ChunkId, JobHandle> handles = new Dictionary<ChunkId, JobHandle>();
 
+    private NativeArray<uint> emptyChunk;
+
+
     public static ChunkId FromWorldPos(int x, int y, int z)
     {
         return new ChunkId(x >> GameDefines.CHUNK_BIT, y >> GameDefines.CHUNK_BIT, z >> GameDefines.CHUNK_BIT);
@@ -73,6 +76,15 @@ public class ChunkSystem : MonoBehaviour
         ChunkDatas.Add(id, chunkData);
         var chunkView = go.AddComponent<ChunkView>();
         ChunkViews.Add(id, chunkView);
+    }
+
+    private void Awake()
+    {
+        emptyChunk = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.Persistent);
+    }
+    private void OnDestroy()
+    {
+        emptyChunk.Dispose();
     }
 
     private void Start()
@@ -211,15 +223,39 @@ public class ChunkSystem : MonoBehaviour
                     Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
                     Indices = new NativeArray<int>(2, Allocator.TempJob)
                 };
-                var data = MeshHelper.GetChunkWithPerimeterForJob(ChunkDatas, p.Key);
-                var job = new JobGreedyMeshing
+                var data = new NativeArray<uint>(GameDefines.CHUNK_PERIMETER_SIZE, Allocator.TempJob);
+                var id = p.Key;
+                var hasleft = ChunkDatas.TryGetValue(id.Shift(Vector3Int.left), out var left);
+                var hasright = ChunkDatas.TryGetValue(id.Shift(Vector3Int.right), out var right);
+                var hastop = ChunkDatas.TryGetValue(id.Shift(Vector3Int.up), out var top);
+                var hasbottom = ChunkDatas.TryGetValue(id.Shift(Vector3Int.down), out var bottom);
+                var hasfront = ChunkDatas.TryGetValue(id.Shift(Vector3Int.forward), out var front);
+                var hasback = ChunkDatas.TryGetValue(id.Shift(Vector3Int.back), out var back);
+                var setupJob = new JobSetupPerimeterChunkData
+                {
+                    Current = p.Value.Voxels,
+                    HasLeft = hasleft,
+                    Left = hasleft ? left.Voxels : emptyChunk,
+                    HasRight = hasright,
+                    Right = hasright ? right.Voxels : emptyChunk,
+                    HasTop = hastop,
+                    Top = hastop ? top.Voxels : emptyChunk,
+                    HasBottom = hasbottom,
+                    Bottom = hasbottom ? bottom.Voxels : emptyChunk,
+                    HasFront = hasfront,
+                    Front = hasfront ? front.Voxels : emptyChunk,
+                    HasBack = hasback,
+                    Back = hasback ? back.Voxels : emptyChunk,
+                    Output = data
+                };
+                var greedyJob = new JobGreedyMeshing
                 {
                     Data = data,
                     MeshData = mesh,
                     Id = p.Key
                 };
-                greedyMeshingJobs.Add(p.Key, job);
-                handles[p.Key] = job.Schedule();
+                greedyMeshingJobs.Add(p.Key, greedyJob);
+                handles[p.Key] = greedyJob.Schedule(setupJob.Schedule());
                 p.Value.IsDirty = false;
             }
         }

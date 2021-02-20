@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Collections;
 using Unity.Mathematics;
 
 
@@ -10,7 +11,7 @@ public class ChunkData : MonoBehaviour
     public ChunkSystem ChunkSystem;
     public bool IsDirty;
 
-    public uint[] Voxels { get; } = new uint[GameDefines.CHUNK_SIZE_CUBED];
+    public NativeArray<uint> Voxels;
 
     public static int FlattenIndex(int x, int y, int z) => x * GameDefines.CHUNK_SIZE_SQUARED + y * GameDefines.CHUNK_SIZE + z;
     public static int FlattenIndex(Vector3Int localIndex) => FlattenIndex(localIndex.x, localIndex.y, localIndex.z);
@@ -57,5 +58,14 @@ public class ChunkData : MonoBehaviour
         {
             return ChunkSystem.ChunkDatas.TryGetValue(ChunkId.Shift(chunkShift), out var chunk) && chunk[GetShiftedIndex(newIndex)] > 0u;
         }
+    }
+
+    private void Awake()
+    {
+        Voxels = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.Persistent);
+    }
+    private void OnDestroy()
+    {
+        Voxels.Dispose();
     }
 }

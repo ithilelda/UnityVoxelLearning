@@ -36,7 +36,7 @@ public struct JobNaiveCulling : IJob
                         var pos = ChunkSystem.ToWorldPos(Id, x, y, z);
                         if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Forward))
                         {
-                            MeshData.AddFace(pos, Facing.FORWARD, Vector3.one);
+                            MeshData.AddFace(pos, Facing.FRONT, Vector3.one);
                         }
                         if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Back))
                         {

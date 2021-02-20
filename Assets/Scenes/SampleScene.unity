@@ -478,7 +478,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cbcf90209344c3b4f8fed39d64691c1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MeshingType: 2
+  MeshingType: 3
   fullUpdate: 0
   frequency: 0.05
 --- !u!4 &2047163052

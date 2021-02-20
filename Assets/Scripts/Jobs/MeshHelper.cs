@@ -141,7 +141,7 @@ public static class MeshHelper
             case Facing.BOTTOM:
                 ret = Down;
                 break;
-            case Facing.FORWARD:
+            case Facing.FRONT:
                 ret = Forward;
                 break;
         }
