@@ -14,6 +14,13 @@ public class ChunkView : MonoBehaviour
     private MeshRenderer meshRenderer;
     private MeshCollider meshCollider;
 
+    public TextureManager textureManager;
+
+    private void Awake()
+    {
+        textureManager = GameObject.Find("TextureManager").GetComponent<TextureManager>();
+    }
+
     // Start is called before the first frame update
     private void Start()
     {
@@ -22,7 +29,9 @@ public class ChunkView : MonoBehaviour
         meshCollider = GetComponent<MeshCollider>();
         meshCollider.enabled = true;
         meshRenderer = GetComponent<MeshRenderer>();
-        meshRenderer.material = Resources.Load<Material>("Materials/Voxel");
+        var material = Resources.Load<Material>("Materials/Voxel");
+        material.SetTexture("VoxelTextures", textureManager.VoxelTextures);
+        meshRenderer.material = material;
     }
 
     public void AssignMesh(MeshData data)
