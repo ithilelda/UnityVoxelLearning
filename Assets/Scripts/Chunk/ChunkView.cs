@@ -30,7 +30,7 @@ public class ChunkView : MonoBehaviour
         meshCollider.enabled = true;
         meshRenderer = GetComponent<MeshRenderer>();
         var material = Resources.Load<Material>("Materials/Voxel");
-        material.SetTexture("VoxelTextures", textureManager.VoxelTextures);
+        material.SetTexture("_VoxelTextures", textureManager.VoxelTextures);
         meshRenderer.material = material;
     }
 
