@@ -19,6 +19,7 @@ public struct ChunkId : IEquatable<ChunkId>
     {
         return new ChunkId(x + shift.x, y + shift.y, z + shift.z);
     }
+    public Vector3 WorldPosition() => new Vector3(x << GameDefines.CHUNK_BIT, y << GameDefines.CHUNK_BIT, z << GameDefines.CHUNK_BIT);
 
     public bool Equals(ChunkId other)
     {

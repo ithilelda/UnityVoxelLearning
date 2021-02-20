@@ -21,7 +21,7 @@ public class MeshData
                     var voxelType = chunkData[index];
                     if (voxelType > 0u)
                     {
-                        var pos = ChunkSystem.ToWorldPos(id, x, y, z);
+                        var pos = new Vector3(x, y, z);
                         if (!chunkData.HasAdjacency(index, Vector3Int.forward))
                         {
                             var cp = ret.Vertices.Count;

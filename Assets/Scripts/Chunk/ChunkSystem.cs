@@ -29,14 +29,6 @@ public class ChunkSystem : MonoBehaviour
     {
         return new ChunkId(x >> GameDefines.CHUNK_BIT, y >> GameDefines.CHUNK_BIT, z >> GameDefines.CHUNK_BIT);
     }
-    public static Vector3 ToWorldPos(ChunkId id, int x, int y, int z)
-    {
-        return new Vector3((id.x << GameDefines.CHUNK_BIT) + x, (id.y << GameDefines.CHUNK_BIT) + y, (id.z << GameDefines.CHUNK_BIT) + z);
-    }
-    public static Vector3 ToWorldPos(ChunkId id, int4 start)
-    {
-        return new Vector3((id.x << GameDefines.CHUNK_BIT) + start.x, (id.y << GameDefines.CHUNK_BIT) + start.y, (id.z << GameDefines.CHUNK_BIT) + start.z);
-    }
 
     public uint this[int x, int y, int z]
     {
@@ -56,7 +48,10 @@ public class ChunkSystem : MonoBehaviour
     public void GenerateChunk(ChunkId id)
     {
         var go = new GameObject($"Chunk {id.x} {id.y} {id.z}");
+        go.layer = 6; // put all chunks on the layer 6.
         go.transform.parent = transform.parent;
+        var startPos = id.WorldPosition();
+        go.transform.Translate(startPos); // moves the chunk to the correct position.
         var chunkData = go.AddComponent<ChunkData>();
         chunkData.ChunkId = id;
         chunkData.ChunkSystem = this;
@@ -66,9 +61,8 @@ public class ChunkSystem : MonoBehaviour
             {
                 for (int z = 0; z < GameDefines.CHUNK_SIZE; z++)
                 {
-                    var pos = ToWorldPos(id, x, y, z);
                     //Debug.Log(pos);
-                    chunkData[x, y, z] = (uint)(Mathf.FloorToInt(Noise.GetNoise(pos.x, pos.y, pos.z)) + 1);
+                    chunkData[x, y, z] = (uint)(Mathf.FloorToInt(Noise.GetNoise(startPos.x + x, startPos.y + y, startPos.z + z)) + 1);
                 }
             }
         }
@@ -102,7 +96,7 @@ public class ChunkSystem : MonoBehaviour
                 }
             }
         }
-        ComputeShader shader = Resources.Load<ComputeShader>("Shaders/MeshGeneration");
+        ComputeShader shader = Resources.Load<ComputeShader>("ComputeShaders/MeshGeneration");
         Debug.Log(shader.ToString());
     }
 
@@ -206,14 +200,14 @@ public class ChunkSystem : MonoBehaviour
         {
             Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
             Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
-            Indices = new NativeArray<int>(2, Allocator.TempJob)
+            UVs = new NativeArray<Vector2>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
+            Indices = new NativeArray<int>(3, Allocator.TempJob)
         };
         var setupJob = SetupPerimeterChunkDataJob(id);
         var job = new JobNaiveCulling
         {
             Data = setupJob.Output,
-            MeshData = mesh,
-            Id = id
+            MeshData = mesh
         };
         meshGenJobs.Add(id, job);
         handles[id] = job.Schedule(setupJob.Schedule());
@@ -224,14 +218,14 @@ public class ChunkSystem : MonoBehaviour
         {
             Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
             Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
-            Indices = new NativeArray<int>(2, Allocator.TempJob)
+            UVs = new NativeArray<Vector2>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
+            Indices = new NativeArray<int>(3, Allocator.TempJob)
         };
         var setupJob = SetupPerimeterChunkDataJob(id);
         var greedyJob = new JobGreedyMeshing
         {
             Data = setupJob.Output,
-            MeshData = mesh,
-            Id = id
+            MeshData = mesh
         };
         greedyMeshingJobs.Add(id, greedyJob);
         handles[id] = greedyJob.Schedule(setupJob.Schedule());

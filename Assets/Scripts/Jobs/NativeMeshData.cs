@@ -11,12 +11,14 @@ public partial struct NativeMeshData
 {
     public NativeArray<Vector3> Vertices;
     public NativeArray<int> Triangles;
+    public NativeArray<Vector2> UVs;
     public NativeArray<int> Indices;
 
     public void Dispose()
     {
         Vertices.Dispose();
         Triangles.Dispose();
+        UVs.Dispose();
         Indices.Dispose();
     }
 
@@ -37,36 +39,66 @@ public partial struct NativeMeshData
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.forward;
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.up * size.y + Vector3.forward;
                 Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.forward;
+
+                UVs[Indices[2]++] = Vector2.zero;
+                UVs[Indices[2]++] = Vector2.right * size.x;
+                UVs[Indices[2]++] = Vector2.right * size.x + Vector2.up * size.y;
+                UVs[Indices[2]++] = Vector2.up * size.y;
                 break;
             case Facing.BACK:
                 Vertices[Indices[0]++] = offset + Vector3.zero;
                 Vertices[Indices[0]++] = offset + Vector3.up * size.y;
                 Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.right * size.x;
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x;
+
+                UVs[Indices[2]++] = Vector2.zero;
+                UVs[Indices[2]++] = Vector2.up * size.y;
+                UVs[Indices[2]++] = Vector2.right * size.x + Vector2.up * size.y;
+                UVs[Indices[2]++] = Vector2.right * size.x;
                 break;
             case Facing.TOP:
                 Vertices[Indices[0]++] = offset + Vector3.up;
                 Vertices[Indices[0]++] = offset + Vector3.up + Vector3.forward * size.z;
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.up + Vector3.forward * size.z;
                 Vertices[Indices[0]++] = offset + Vector3.up + Vector3.right * size.x;
+
+                UVs[Indices[2]++] = Vector2.zero;
+                UVs[Indices[2]++] = Vector2.up * size.z;
+                UVs[Indices[2]++] = Vector2.right * size.x + Vector2.up * size.z;
+                UVs[Indices[2]++] = Vector2.right * size.x;
                 break;
             case Facing.BOTTOM:
                 Vertices[Indices[0]++] = offset + Vector3.zero;
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x;
                 Vertices[Indices[0]++] = offset + Vector3.right * size.x + Vector3.forward * size.z;
                 Vertices[Indices[0]++] = offset + Vector3.forward * size.z;
+
+                UVs[Indices[2]++] = Vector2.zero;
+                UVs[Indices[2]++] = Vector2.right * size.x;
+                UVs[Indices[2]++] = Vector2.right * size.x + Vector2.up * size.z;
+                UVs[Indices[2]++] = Vector2.up * size.z;
                 break;
             case Facing.RIGHT:
+                Vertices[Indices[0]++] = offset + Vector3.right;
                 Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.right;
                 Vertices[Indices[0]++] = offset + Vector3.right + Vector3.up * size.y + Vector3.forward * size.z;
                 Vertices[Indices[0]++] = offset + Vector3.right + Vector3.forward * size.z;
-                Vertices[Indices[0]++] = offset + Vector3.right;
+
+                UVs[Indices[2]++] = Vector2.zero;
+                UVs[Indices[2]++] = Vector2.up * size.y;
+                UVs[Indices[2]++] = Vector2.right * size.z + Vector2.up * size.y;
+                UVs[Indices[2]++] = Vector2.right * size.z;
                 break;
             case Facing.LEFT:
                 Vertices[Indices[0]++] = offset + Vector3.zero;
                 Vertices[Indices[0]++] = offset + Vector3.forward * size.z;
                 Vertices[Indices[0]++] = offset + Vector3.up * size.y + Vector3.forward * size.z;
                 Vertices[Indices[0]++] = offset + Vector3.up * size.y;
+
+                UVs[Indices[2]++] = Vector2.zero;
+                UVs[Indices[2]++] = Vector2.right * size.z;
+                UVs[Indices[2]++] = Vector2.right * size.z + Vector2.up * size.y;
+                UVs[Indices[2]++] = Vector2.up * size.y;
                 break;
             default:
                 break;

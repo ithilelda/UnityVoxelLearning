@@ -10,8 +10,6 @@ public struct JobNaiveCulling : IJob
 {
     [ReadOnly]
     public NativeArray<uint> Data;
-    [ReadOnly]
-    public ChunkId Id;
 
     public NativeMeshData MeshData;
 
@@ -33,7 +31,7 @@ public struct JobNaiveCulling : IJob
                     if (voxelType > 0u)
                     {
                         var index = new int4(x, y, z, 0);
-                        var pos = ChunkSystem.ToWorldPos(Id, x, y, z);
+                        var pos = new Vector3(x, y, z);
                         if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Forward))
                         {
                             MeshData.AddFace(pos, Facing.FRONT, Vector3.one);

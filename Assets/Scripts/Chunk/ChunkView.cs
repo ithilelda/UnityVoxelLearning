@@ -22,7 +22,7 @@ public class ChunkView : MonoBehaviour
         meshCollider = GetComponent<MeshCollider>();
         meshCollider.enabled = true;
         meshRenderer = GetComponent<MeshRenderer>();
-        meshRenderer.material = Resources.Load<Material>("Materials/Blocks");
+        meshRenderer.material = Resources.Load<Material>("Materials/Voxel");
     }
 
     public void AssignMesh(MeshData data)
@@ -42,6 +42,7 @@ public class ChunkView : MonoBehaviour
         mesh.Clear();
         mesh.SetVertices(data.Vertices, 0, data.Indices[0]);
         mesh.SetTriangles(data.Triangles.ToArray(), 0, data.Indices[1], 0);
+        mesh.SetUVs(0, data.UVs, 0, data.Indices[2]);
         mesh.RecalculateNormals();
         filter.mesh = mesh;
         meshCollider.sharedMesh = mesh;

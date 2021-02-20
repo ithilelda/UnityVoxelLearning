@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Collections;
@@ -15,8 +10,6 @@ public struct JobGreedyMeshing : IJob
 {
     [ReadOnly]
     public NativeArray<uint> Data;
-    [ReadOnly]
-    public ChunkId Id;
 
     public NativeMeshData MeshData;
 
@@ -107,7 +100,7 @@ public struct JobGreedyMeshing : IJob
                         quadSize[axis1] = curPos[axis1] - startPos[axis1];
 
                         // then we add the quad to our mesh.
-                        MeshData.AddFace(ChunkSystem.ToWorldPos(Id, startPos), (Facing)face, quadSize);
+                        MeshData.AddFace(new Vector3(startPos.x, startPos.y, startPos.z), (Facing)face, quadSize);
 
                         // finally we mark the voxels that make up the quad merged.
                         for (int i = 0; i < quadSize[axis1]; i++)
