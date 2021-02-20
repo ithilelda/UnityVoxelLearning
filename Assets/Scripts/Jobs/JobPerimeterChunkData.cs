@@ -7,7 +7,7 @@ using Unity.Jobs;
 using Unity.Collections;
 
 
-public struct JobSetupPerimeterChunkData : IJob
+public struct JobPerimeterChunkData : IJob
 {
     //input.
     [ReadOnly]

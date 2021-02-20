@@ -13,7 +13,7 @@ public class ChunkSystem : MonoBehaviour
     public Dictionary<ChunkId, ChunkData> ChunkDatas { get; } = new Dictionary<ChunkId, ChunkData>();
     public Dictionary<ChunkId, ChunkView> ChunkViews { get; } = new Dictionary<ChunkId, ChunkView>();
 
-    [SerializeField, Range(0,3)]
+    [SerializeField, Range(0,2)]
     public int MeshingType;
     public bool fullUpdate;
     public float frequency;
@@ -152,113 +152,88 @@ public class ChunkSystem : MonoBehaviour
 
     private void DoMeshGeneration()
     {
-        switch (MeshingType)
+        foreach (var p in ChunkDatas)
         {
-            case 0:
-                foreach (var p in ChunkDatas)
+            if (p.Value.IsDirty)
+            {
+                switch (MeshingType)
                 {
-                    if (p.Value.IsDirty)
-                    {
-                        var view = ChunkViews[p.Key];
-                        view.RenderToMesh(p.Key, p.Value);
-                        p.Value.IsDirty = false;
-                    }
+                    case 0:
+                        ChunkViews[p.Key].RenderToMesh(p.Key, p.Value);
+                        break;
+                    case 1:
+                        ScheduleMeshJob(p.Key);
+                        break;
+                    case 2:
+                        ScheduleGreedyMeshingJob(p.Key);
+                        break;
                 }
-                break;
-            case 1:
-                foreach (var p in ChunkDatas)
-                {
-                    if (p.Value.IsDirty)
-                    {
-                        var view = ChunkViews[p.Key];
-                        view.RenderToMeshAsync(p.Key, p.Value);
-                        p.Value.IsDirty = false;
-                    }
-                }
-                break;
-            case 2:
-                ScheduleMeshJob();
-                break;
-            case 3:
-                ScheduleGreedyMeshingJob();
-                break;
+            }
+            p.Value.IsDirty = false;
         }
     }
 
-    private void ScheduleMeshJob()
+    private JobPerimeterChunkData SetupPerimeterChunkDataJob(ChunkId id)
     {
-        foreach (var p in ChunkDatas)
+        var data = new NativeArray<uint>(GameDefines.CHUNK_PERIMETER_SIZE, Allocator.TempJob);
+        var hasleft = ChunkDatas.TryGetValue(id.Shift(Vector3Int.left), out var left);
+        var hasright = ChunkDatas.TryGetValue(id.Shift(Vector3Int.right), out var right);
+        var hastop = ChunkDatas.TryGetValue(id.Shift(Vector3Int.up), out var top);
+        var hasbottom = ChunkDatas.TryGetValue(id.Shift(Vector3Int.down), out var bottom);
+        var hasfront = ChunkDatas.TryGetValue(id.Shift(Vector3Int.forward), out var front);
+        var hasback = ChunkDatas.TryGetValue(id.Shift(Vector3Int.back), out var back);
+        return new JobPerimeterChunkData
         {
-            if (p.Value.IsDirty)
-            {
-                var mesh = new NativeMeshData
-                {
-                    Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
-                    Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
-                    Indices = new NativeArray<int>(2, Allocator.TempJob)
-                };
-                var data = MeshHelper.GetChunkWithPerimeterForJob(ChunkDatas, p.Key);
-                var job = new JobNaiveCulling
-                {
-                    Data = data,
-                    MeshData = mesh,
-                    Id = p.Key
-                };
-                meshGenJobs.Add(p.Key, job);
-                handles[p.Key] = job.Schedule();
-                p.Value.IsDirty = false;
-            }
-        }
-        JobHandle.ScheduleBatchedJobs();
+            Current = ChunkDatas[id].Voxels,
+            HasLeft = hasleft,
+            Left = hasleft ? left.Voxels : emptyChunk,
+            HasRight = hasright,
+            Right = hasright ? right.Voxels : emptyChunk,
+            HasTop = hastop,
+            Top = hastop ? top.Voxels : emptyChunk,
+            HasBottom = hasbottom,
+            Bottom = hasbottom ? bottom.Voxels : emptyChunk,
+            HasFront = hasfront,
+            Front = hasfront ? front.Voxels : emptyChunk,
+            HasBack = hasback,
+            Back = hasback ? back.Voxels : emptyChunk,
+            Output = data
+        };
     }
-    private void ScheduleGreedyMeshingJob()
+    private void ScheduleMeshJob(ChunkId id)
     {
-        foreach (var p in ChunkDatas)
+        var mesh = new NativeMeshData
         {
-            if (p.Value.IsDirty)
-            {
-                var mesh = new NativeMeshData
-                {
-                    Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
-                    Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
-                    Indices = new NativeArray<int>(2, Allocator.TempJob)
-                };
-                var data = new NativeArray<uint>(GameDefines.CHUNK_PERIMETER_SIZE, Allocator.TempJob);
-                var id = p.Key;
-                var hasleft = ChunkDatas.TryGetValue(id.Shift(Vector3Int.left), out var left);
-                var hasright = ChunkDatas.TryGetValue(id.Shift(Vector3Int.right), out var right);
-                var hastop = ChunkDatas.TryGetValue(id.Shift(Vector3Int.up), out var top);
-                var hasbottom = ChunkDatas.TryGetValue(id.Shift(Vector3Int.down), out var bottom);
-                var hasfront = ChunkDatas.TryGetValue(id.Shift(Vector3Int.forward), out var front);
-                var hasback = ChunkDatas.TryGetValue(id.Shift(Vector3Int.back), out var back);
-                var setupJob = new JobSetupPerimeterChunkData
-                {
-                    Current = p.Value.Voxels,
-                    HasLeft = hasleft,
-                    Left = hasleft ? left.Voxels : emptyChunk,
-                    HasRight = hasright,
-                    Right = hasright ? right.Voxels : emptyChunk,
-                    HasTop = hastop,
-                    Top = hastop ? top.Voxels : emptyChunk,
-                    HasBottom = hasbottom,
-                    Bottom = hasbottom ? bottom.Voxels : emptyChunk,
-                    HasFront = hasfront,
-                    Front = hasfront ? front.Voxels : emptyChunk,
-                    HasBack = hasback,
-                    Back = hasback ? back.Voxels : emptyChunk,
-                    Output = data
-                };
-                var greedyJob = new JobGreedyMeshing
-                {
-                    Data = data,
-                    MeshData = mesh,
-                    Id = p.Key
-                };
-                greedyMeshingJobs.Add(p.Key, greedyJob);
-                handles[p.Key] = greedyJob.Schedule(setupJob.Schedule());
-                p.Value.IsDirty = false;
-            }
-        }
-        JobHandle.ScheduleBatchedJobs();
+            Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
+            Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
+            Indices = new NativeArray<int>(2, Allocator.TempJob)
+        };
+        var setupJob = SetupPerimeterChunkDataJob(id);
+        var job = new JobNaiveCulling
+        {
+            Data = setupJob.Output,
+            MeshData = mesh,
+            Id = id
+        };
+        meshGenJobs.Add(id, job);
+        handles[id] = job.Schedule(setupJob.Schedule());
+    }
+    private void ScheduleGreedyMeshingJob(ChunkId id)
+    {
+        var mesh = new NativeMeshData
+        {
+            Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
+            Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
+            Indices = new NativeArray<int>(2, Allocator.TempJob)
+        };
+        var setupJob = SetupPerimeterChunkDataJob(id);
+        var greedyJob = new JobGreedyMeshing
+        {
+            Data = setupJob.Output,
+            MeshData = mesh,
+            Id = id
+        };
+        greedyMeshingJobs.Add(id, greedyJob);
+        handles[id] = greedyJob.Schedule(setupJob.Schedule());
     }
 }
