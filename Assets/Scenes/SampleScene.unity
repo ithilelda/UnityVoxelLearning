@@ -378,7 +378,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   MovementSpeed: 10
   RotationSpeed: 5
-  JumpForce: 0.5
+  JumpHeight: 1.1
   gravity: -9.81
   Controller: {fileID: 1317712193}
 --- !u!114 &1317712192
