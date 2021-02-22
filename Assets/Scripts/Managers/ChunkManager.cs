@@ -7,7 +7,7 @@ using Unity.Jobs;
 using Unity.Collections;
 using Unity.Mathematics;
 
-public class ChunkSystem : MonoBehaviour
+public class ChunkManager : MonoBehaviour
 {
     public FastNoiseLite Noise { get; } = new FastNoiseLite();
     public Dictionary<ChunkId, ChunkData> ChunkDatas { get; } = new Dictionary<ChunkId, ChunkData>();
@@ -29,6 +29,10 @@ public class ChunkSystem : MonoBehaviour
     {
         return new ChunkId(x >> GameDefines.CHUNK_BIT, y >> GameDefines.CHUNK_BIT, z >> GameDefines.CHUNK_BIT);
     }
+    public static ChunkId FromWorldPos(Vector3Int index)
+    {
+        return FromWorldPos(index.x, index.y, index.z);
+    }
 
     public uint this[int x, int y, int z]
     {
@@ -42,7 +46,29 @@ public class ChunkSystem : MonoBehaviour
         {
             var chunk = ChunkDatas[FromWorldPos(x, y, z)];
             chunk[x & GameDefines.CHUNK_MASK, y & GameDefines.CHUNK_MASK, z & GameDefines.CHUNK_MASK] = value;
+            chunk.IsDirty = true;
         }
+    }
+    public uint this[Vector3Int index]
+    {
+        get
+        {
+            var chunk = ChunkDatas[FromWorldPos(index)];
+            return chunk[index.x & GameDefines.CHUNK_MASK, index.y & GameDefines.CHUNK_MASK, index.z & GameDefines.CHUNK_MASK];
+        }
+
+        set
+        {
+            var chunk = ChunkDatas[FromWorldPos(index)];
+            chunk[index.x & GameDefines.CHUNK_MASK, index.y & GameDefines.CHUNK_MASK, index.z & GameDefines.CHUNK_MASK] = value;
+            chunk.IsDirty = true;
+        }
+    }
+
+    public Vector3Int GetCoordinateFromHit(Vector3 hitPos, Vector3 faceNormal)
+    {
+        var loc = hitPos - Vector3.Max(Vector3.zero, faceNormal);
+        return Vector3Int.FloorToInt(loc);
     }
 
     public void GenerateChunk(ChunkId id)

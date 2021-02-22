@@ -8,7 +8,7 @@ using Unity.Mathematics;
 public class ChunkData : MonoBehaviour
 {
     public ChunkId ChunkId;
-    public ChunkSystem ChunkSystem;
+    public ChunkManager ChunkSystem;
     public bool IsDirty;
 
     public NativeArray<uint> Voxels;
