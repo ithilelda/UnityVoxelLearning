@@ -247,13 +247,12 @@ public class ChunkManager : MonoBehaviour
             UVs = new NativeArray<Vector2>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
             Indices = new NativeArray<int>(3, Allocator.TempJob)
         };
-        var setupJob = SetupPerimeterChunkDataJob(id);
         var greedyJob = new JobGreedyMeshing
         {
-            Data = setupJob.Output,
+            Data = ChunkDatas[id].Voxels,
             MeshData = mesh
         };
         greedyMeshingJobs.Add(id, greedyJob);
-        handles[id] = greedyJob.Schedule(setupJob.Schedule());
+        handles[id] = greedyJob.Schedule();
     }
 }

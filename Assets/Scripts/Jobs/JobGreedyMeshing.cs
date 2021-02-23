@@ -15,7 +15,6 @@ public struct JobGreedyMeshing : IJob
 
     public void Dispose()
     {
-        Data.Dispose();
         MeshData.Dispose();
     }
 

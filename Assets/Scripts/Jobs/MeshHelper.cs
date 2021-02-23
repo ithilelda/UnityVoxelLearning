@@ -147,7 +147,7 @@ public static class MeshHelper
         }
         return ret;
     }
-    public static bool FaceIsObscuredJobs(NativeArray<uint> perimeterData, int4 index, int4 direction)
+    public static bool FaceIsObscuredWithPerimeterJobs(NativeArray<uint> perimeterData, int4 index, int4 direction)
     {
         var chunkShift = ChunkData.GetChunkShift(index + direction);
         if (chunkShift.Equals(int4.zero))
@@ -189,6 +189,16 @@ public static class MeshHelper
         {
             return false;
         }
+    }
+    // this method does not take neighboring chunks into consideration, so will always see border faces as not obscured (returning false).
+    public static bool FaceIsObscuredJobs(NativeArray<uint> data, int4 index, int4 direction)
+    {
+        var chunkShift = ChunkData.GetChunkShift(index + direction);
+        if (chunkShift.Equals(int4.zero))
+        {
+            return data[ChunkData.FlattenIndex(index + direction)] > 0u;
+        }
+        return false;
     }
 }
 
