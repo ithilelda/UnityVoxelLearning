@@ -137,6 +137,7 @@ public class ChunkManager : MonoBehaviour
         }
         var start = Time.realtimeSinceStartup;
         DoMeshGeneration();
+        var middle = Time.realtimeSinceStartup;
         foreach (var p in ChunkViews)
         {
             if(handles.TryGetValue(p.Key, out var handle))
@@ -165,7 +166,8 @@ public class ChunkManager : MonoBehaviour
         var end = Time.realtimeSinceStartup;
         if (fullUpdate)
         {
-            Debug.Log(end - start);
+            Debug.Log($"setup job:{middle - start}");
+            Debug.Log($"setting mesh :{end - middle}");
             fullUpdate = false;
         }
     }
@@ -224,10 +226,9 @@ public class ChunkManager : MonoBehaviour
     {
         var mesh = new NativeMeshData
         {
-            Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
-            Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
-            UVs = new NativeArray<Vector2>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
-            Indices = new NativeArray<int>(3, Allocator.TempJob)
+            Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+            Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+            Indices = new NativeArray<int>(2, Allocator.TempJob)
         };
         var setupJob = SetupPerimeterChunkDataJob(id);
         var job = new JobNaiveCulling
@@ -242,10 +243,9 @@ public class ChunkManager : MonoBehaviour
     {
         var mesh = new NativeMeshData
         {
-            Vertices = new NativeArray<Vector3>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
-            Triangles = new NativeArray<int>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob),
-            UVs = new NativeArray<Vector2>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob),
-            Indices = new NativeArray<int>(3, Allocator.TempJob)
+            Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+            Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+            Indices = new NativeArray<int>(2, Allocator.TempJob)
         };
         var greedyJob = new JobGreedyMeshing
         {

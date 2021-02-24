@@ -3,18 +3,25 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Unity.Jobs;
 using Unity.Collections;
-
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
 [RequireComponent(typeof(MeshCollider))]
 public class ChunkView : MonoBehaviour
 {
+    public static readonly VertexAttributeDescriptor[] VertexAttributes = new VertexAttributeDescriptor[]
+    {
+        new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+        new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
+        new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
+    };
+
+    public TextureManager textureManager;
+
     private MeshFilter filter;
     private MeshRenderer meshRenderer;
     private MeshCollider meshCollider;
-
-    public TextureManager textureManager;
 
     private void Awake()
     {
@@ -46,13 +53,14 @@ public class ChunkView : MonoBehaviour
     }
     public void AssignMesh(NativeMeshData data)
     {
-        //Debug.Log($"vertices count: {data.Indices[0]}, triangles count: {data.Indices[1]}");
+        //Debug.Log($"{data.Indices[0]}, {data.Indices[1]}");
         var mesh = filter.mesh;
         mesh.Clear();
-        mesh.SetVertices(data.Vertices, 0, data.Indices[0]);
-        mesh.SetTriangles(data.Triangles.ToArray(), 0, data.Indices[1], 0);
-        mesh.SetUVs(0, data.UVs, 0, data.Indices[2]);
-        mesh.RecalculateNormals();
+        mesh.SetVertexBufferParams(data.Indices[0], VertexAttributes);
+        mesh.SetVertexBufferData(data.Vertices, 0, 0, data.Indices[0]);
+        mesh.SetIndexBufferParams(data.Indices[1], IndexFormat.UInt32);
+        mesh.SetIndexBufferData(data.Triangles, 0, 0, data.Indices[1]);
+        mesh.SetSubMesh(0, new SubMeshDescriptor(0, data.Indices[1]));
         filter.mesh = mesh;
         meshCollider.sharedMesh = mesh;
     }
@@ -62,10 +70,4 @@ public class ChunkView : MonoBehaviour
         var mesh = MeshData.GenerateMesh(id, data);
         AssignMesh(mesh);
     }
-    public async void RenderToMeshAsync(ChunkId id, ChunkData data)
-    {
-        var mesh = await Task.Run(() => MeshData.GenerateMesh(id, data));
-        AssignMesh(mesh);
-    }
-
 }

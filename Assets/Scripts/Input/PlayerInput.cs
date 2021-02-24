@@ -63,12 +63,13 @@ public class PlayerInput : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (Controller.isGrounded && jumpVelocity.y < 0f) jumpVelocity.y = 0f; // stops falling when we hit ground.
-        if (Controller.isGrounded) velocity = movement; // only move horizontally when we touch ground.
+        //if (Controller.isGrounded && jumpVelocity.y < 0f) jumpVelocity.y = 0f; // stops falling when we hit ground.
+        //if (Controller.isGrounded) 
+            velocity = movement; // only move horizontally when we touch ground.
         Controller.Move(transform.TransformDirection(velocity) * MovementSpeed * Time.fixedDeltaTime);
         
-        var g = jumpVelocity.y >= 0f ? Gravity : 2f * Gravity;
-        jumpVelocity.y += g * Time.fixedDeltaTime;
+        //var g = jumpVelocity.y >= 0f ? Gravity : 2f * Gravity;
+        //jumpVelocity.y += g * Time.fixedDeltaTime;
         Controller.Move(jumpVelocity * Time.fixedDeltaTime);
 
         var trotate = transform.eulerAngles + rotation * Time.fixedDeltaTime * RotationSpeed;
