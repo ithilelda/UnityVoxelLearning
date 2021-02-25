@@ -10,13 +10,6 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(MeshCollider))]
 public class ChunkView : MonoBehaviour
 {
-    public static readonly VertexAttributeDescriptor[] VertexAttributes = new VertexAttributeDescriptor[]
-    {
-        new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-        new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
-        new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
-    };
-
     public TextureManager textureManager;
 
     private MeshFilter filter;
