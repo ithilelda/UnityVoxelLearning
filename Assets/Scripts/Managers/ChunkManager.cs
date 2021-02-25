@@ -18,11 +18,7 @@ public class ChunkManager : MonoBehaviour
     public bool fullUpdate;
     public float frequency;
 
-    private Dictionary<ChunkId, JobNaiveCulling> meshGenJobs = new Dictionary<ChunkId, JobNaiveCulling>();
-    private Dictionary<ChunkId, JobGreedyMeshing> greedyMeshingJobs = new Dictionary<ChunkId, JobGreedyMeshing>();
-    private Dictionary<ChunkId, JobHandle> handles = new Dictionary<ChunkId, JobHandle>();
-
-    private NativeArray<uint> emptyChunk;
+    private Queue<ChunkJob> jobs = new Queue<ChunkJob>();
 
 
     public static ChunkId FromWorldPos(int x, int y, int z)
@@ -98,15 +94,6 @@ public class ChunkManager : MonoBehaviour
         ChunkViews.Add(id, chunkView);
     }
 
-    private void Awake()
-    {
-        emptyChunk = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.Persistent);
-    }
-    private void OnDestroy()
-    {
-        emptyChunk.Dispose();
-    }
-
     private void Start()
     {
         Noise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
@@ -137,39 +124,16 @@ public class ChunkManager : MonoBehaviour
         }
         var start = Time.realtimeSinceStartup;
         DoMeshGeneration();
-        var middle = Time.realtimeSinceStartup;
-        foreach (var p in ChunkViews)
-        {
-            if(handles.TryGetValue(p.Key, out var handle))
-            {
-                if (handle.IsCompleted)
-                {
-                    var view = p.Value;
-                    handle.Complete();
-                    if (meshGenJobs.TryGetValue(p.Key, out var meshgen))
-                    {
-                        view.AssignMesh(meshgen.MeshData);
-                        meshgen.Dispose();
-                        meshGenJobs.Remove(p.Key);
-                    }
-                    if (greedyMeshingJobs.TryGetValue(p.Key, out var greedy))
-                    {
-                        view.AssignMesh(greedy.MeshData);
-                        greedy.Dispose();
-                        greedyMeshingJobs.Remove(p.Key);
-                    }
-
-                    handles.Remove(p.Key);
-                }
-            }
-        }
         var end = Time.realtimeSinceStartup;
         if (fullUpdate)
         {
-            Debug.Log($"setup job:{middle - start}");
-            Debug.Log($"setting mesh :{end - middle}");
-            fullUpdate = false;
+            Debug.Log($"setup jobs: {end - start}");
         }
+    }
+    private void LateUpdate()
+    {
+        HandleJobCompletion();
+        if (fullUpdate) fullUpdate = false;
     }
 
     private void DoMeshGeneration()
@@ -194,34 +158,39 @@ public class ChunkManager : MonoBehaviour
             p.Value.IsDirty = false;
         }
     }
-
-    private JobPerimeterChunkData SetupPerimeterChunkDataJob(ChunkId id)
+    private void HandleJobCompletion()
     {
-        var data = new NativeArray<uint>(GameDefines.CHUNK_PERIMETER_SIZE, Allocator.TempJob);
-        var hasleft = ChunkDatas.TryGetValue(id.Shift(Vector3Int.left), out var left);
-        var hasright = ChunkDatas.TryGetValue(id.Shift(Vector3Int.right), out var right);
-        var hastop = ChunkDatas.TryGetValue(id.Shift(Vector3Int.up), out var top);
-        var hasbottom = ChunkDatas.TryGetValue(id.Shift(Vector3Int.down), out var bottom);
-        var hasfront = ChunkDatas.TryGetValue(id.Shift(Vector3Int.forward), out var front);
-        var hasback = ChunkDatas.TryGetValue(id.Shift(Vector3Int.back), out var back);
-        return new JobPerimeterChunkData
+        var start = Time.realtimeSinceStartup;
+        var elapsed = 0f;
+        while (jobs.Count > 0 && elapsed <= 0.01f)
         {
-            Current = ChunkDatas[id].Voxels,
-            HasLeft = hasleft,
-            Left = hasleft ? left.Voxels : emptyChunk,
-            HasRight = hasright,
-            Right = hasright ? right.Voxels : emptyChunk,
-            HasTop = hastop,
-            Top = hastop ? top.Voxels : emptyChunk,
-            HasBottom = hasbottom,
-            Bottom = hasbottom ? bottom.Voxels : emptyChunk,
-            HasFront = hasfront,
-            Front = hasfront ? front.Voxels : emptyChunk,
-            HasBack = hasback,
-            Back = hasback ? back.Voxels : emptyChunk,
-            Output = data
-        };
+            var chunkJob = jobs.Dequeue();
+            if (chunkJob.Handle.IsCompleted)
+            {
+                chunkJob.Handle.Complete();
+                var view = ChunkViews[chunkJob.Id];
+                if (MeshingType == 1)
+                {
+                    var job = (JobNaiveCulling)chunkJob.Job;
+                    view.AssignMesh(job.MeshData);
+                    job.Dispose();
+                }
+                else if (MeshingType == 2)
+                {
+                    var job = (JobGreedyMeshing)chunkJob.Job;
+                    view.AssignMesh(job.MeshData);
+                    job.Dispose();
+                }
+                
+            }
+            else
+            {
+                jobs.Enqueue(chunkJob);
+            }
+            elapsed = Time.realtimeSinceStartup - start;
+        }
     }
+
     private void ScheduleMeshJob(ChunkId id)
     {
         var mesh = new NativeMeshData
@@ -230,14 +199,14 @@ public class ChunkManager : MonoBehaviour
             Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
             Indices = new NativeArray<int>(2, Allocator.TempJob)
         };
-        var setupJob = SetupPerimeterChunkDataJob(id);
+        var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+        data.CopyFrom(ChunkDatas[id].Voxels);
         var job = new JobNaiveCulling
         {
-            Data = setupJob.Output,
+            Data = data,
             MeshData = mesh
         };
-        meshGenJobs.Add(id, job);
-        handles[id] = job.Schedule(setupJob.Schedule());
+        jobs.Enqueue(new ChunkJob { Id = id, Job = job, Handle = job.Schedule() });
     }
     private void ScheduleGreedyMeshingJob(ChunkId id)
     {
@@ -247,12 +216,13 @@ public class ChunkManager : MonoBehaviour
             Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
             Indices = new NativeArray<int>(2, Allocator.TempJob)
         };
-        var greedyJob = new JobGreedyMeshing
+        var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+        data.CopyFrom(ChunkDatas[id].Voxels);
+        var job = new JobGreedyMeshing
         {
-            Data = ChunkDatas[id].Voxels,
+            Data = data,
             MeshData = mesh
         };
-        greedyMeshingJobs.Add(id, greedyJob);
-        handles[id] = greedyJob.Schedule();
+        jobs.Enqueue(new ChunkJob { Id = id, Job = job, Handle = job.Schedule() });
     }
 }
