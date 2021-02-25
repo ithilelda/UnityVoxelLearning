@@ -8,6 +8,7 @@ public class BatchMeshingJob
 {
     public ChunkManager Manager;
     public Queue<MeshingJob> Jobs = new Queue<MeshingJob>();
+    public Queue<ChunkId> Ids = new Queue<ChunkId>();
     public Mesh.MeshDataArray Array;
     public Mesh[] Meshes;
     public bool IsCompleted;
@@ -19,7 +20,9 @@ public class BatchMeshingJob
 
     public void HandleJobCompletion()
     {
-        while (Jobs.Count > 0)
+        var start = Time.realtimeSinceStartup;
+        var elapsed = 0f;
+        while (Jobs.Count > 0 && elapsed <= 0.01f)
         {
             var chunkJob = Jobs.Dequeue();
             if (chunkJob.Handle.IsCompleted)
@@ -40,6 +43,7 @@ public class BatchMeshingJob
             {
                 Jobs.Enqueue(chunkJob);
             }
+            elapsed = Time.realtimeSinceStartup - start;
         }
         if (Jobs.Count == 0)
         {

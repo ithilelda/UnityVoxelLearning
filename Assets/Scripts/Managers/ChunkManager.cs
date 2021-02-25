@@ -115,6 +115,7 @@ public class ChunkManager : MonoBehaviour
 
     private void Update()
     {
+        HandleJobCompletion();
         if (fullUpdate)
         {
             foreach (var p in ChunkDatas)
@@ -128,12 +129,12 @@ public class ChunkManager : MonoBehaviour
         if (fullUpdate)
         {
             Debug.Log($"setup jobs: {end - start}");
+            fullUpdate = false;
         }
     }
     private void LateUpdate()
     {
-        HandleJobCompletion();
-        if (fullUpdate) fullUpdate = false;
+        
     }
 
     private void DoMeshGeneration()
@@ -170,7 +171,7 @@ public class ChunkManager : MonoBehaviour
             mj.HandleJobCompletion();
             if (mj.IsCompleted)
             {
-                var bakingJob = new BatchBakingJob(mj.Meshes);
+                var bakingJob = new BatchBakingJob(mj.Meshes, mj.Ids);
                 bakingJobs.Enqueue(bakingJob);
             }
             else
@@ -185,9 +186,9 @@ public class ChunkManager : MonoBehaviour
             {
                 bj.Handle.Complete();
                 bj.Ids.Dispose();
-                foreach (var p in ChunkViews)
+                while (bj.ChunkIds.Count > 0)
                 {
-                    p.Value.SetBakedMesh();
+                    ChunkViews[bj.ChunkIds.Dequeue()].SetBakedMesh();
                 }
             }
             else
@@ -217,6 +218,7 @@ public class ChunkManager : MonoBehaviour
         while (ids.Count > 0)
         {
             var id = ids.Dequeue();
+            batchJob.Ids.Enqueue(id);
             batchJob.Meshes[index] = ChunkViews[id].GetMesh();
             var mesh = new NativeMeshData
             {
@@ -253,6 +255,7 @@ public class ChunkManager : MonoBehaviour
         while (ids.Count > 0)
         {
             var id = ids.Dequeue();
+            batchJob.Ids.Enqueue(id);
             batchJob.Meshes[index] = ChunkViews[id].GetMesh();
             var mesh = new NativeMeshData
             {

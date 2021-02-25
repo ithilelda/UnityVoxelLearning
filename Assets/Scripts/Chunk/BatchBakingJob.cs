@@ -11,10 +11,12 @@ using Unity.Collections;
 public class BatchBakingJob
 {
     public NativeArray<int> Ids;
+    public Queue<ChunkId> ChunkIds;
     public JobHandle Handle;
 
-    public BatchBakingJob(Mesh[] meshes)
+    public BatchBakingJob(Mesh[] meshes, Queue<ChunkId> chunkIds)
     {
+        ChunkIds = chunkIds;
         var ids = new NativeArray<int>(meshes.Length, Allocator.Persistent);
         for (int i = 0; i < meshes.Length; i++)
         {
@@ -25,7 +27,7 @@ public class BatchBakingJob
             MeshIds = ids
         };
         Ids = ids;
-        Handle = job.Schedule(meshes.Length, 64);
+        Handle = job.Schedule(meshes.Length, 8);
     }
 }
 
