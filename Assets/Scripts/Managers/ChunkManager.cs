@@ -1,7 +1,4 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 using Unity.Jobs;
 using Unity.Collections;
@@ -13,13 +10,14 @@ public class ChunkManager : MonoBehaviour
     public Dictionary<ChunkId, ChunkData> ChunkDatas { get; } = new Dictionary<ChunkId, ChunkData>();
     public Dictionary<ChunkId, ChunkView> ChunkViews { get; } = new Dictionary<ChunkId, ChunkView>();
 
-    [SerializeField, Range(0,2)]
+    [Range(0,2)]
     public int MeshingType;
     public bool fullUpdate;
     public float frequency;
 
-    private Queue<ChunkJob> jobs = new Queue<ChunkJob>();
-
+    private readonly Queue<BatchMeshingJob> meshingJobs = new Queue<BatchMeshingJob>();
+    private readonly Queue<BatchBakingJob> bakingJobs = new Queue<BatchBakingJob>();
+    private readonly Queue<ChunkId> dirtyChunks = new Queue<ChunkId>();
 
     public static ChunkId FromWorldPos(int x, int y, int z)
     {
@@ -69,8 +67,10 @@ public class ChunkManager : MonoBehaviour
 
     public void GenerateChunk(ChunkId id)
     {
-        var go = new GameObject($"Chunk {id.x} {id.y} {id.z}");
-        go.layer = 6; // put all chunks on the layer 6.
+        var go = new GameObject($"Chunk {id.x} {id.y} {id.z}")
+        {
+            layer = 6 // put all chunks on the layer 6.
+        };
         go.transform.parent = transform.parent;
         var startPos = id.WorldPosition();
         go.transform.Translate(startPos); // moves the chunk to the correct position.
@@ -142,87 +142,139 @@ public class ChunkManager : MonoBehaviour
         {
             if (p.Value.IsDirty)
             {
-                switch (MeshingType)
-                {
-                    case 0:
-                        ChunkViews[p.Key].RenderToMesh(p.Key, p.Value);
-                        break;
-                    case 1:
-                        ScheduleMeshJob(p.Key);
-                        break;
-                    case 2:
-                        ScheduleGreedyMeshingJob(p.Key);
-                        break;
-                }
+                dirtyChunks.Enqueue(p.Key);
+                p.Value.IsDirty = false;
             }
-            p.Value.IsDirty = false;
+        }
+        if (dirtyChunks.Count > 0)
+        {
+            switch (MeshingType)
+            {
+                case 0:
+                    DoSyncMeshing(dirtyChunks);
+                    break;
+                case 1:
+                    ScheduleMeshJob(dirtyChunks);
+                    break;
+                case 2:
+                    ScheduleGreedyMeshingJob(dirtyChunks);
+                    break;
+            }
         }
     }
     private void HandleJobCompletion()
     {
-        var start = Time.realtimeSinceStartup;
-        var elapsed = 0f;
-        while (jobs.Count > 0 && elapsed <= 0.01f)
+        if (meshingJobs.Count > 0)
         {
-            var chunkJob = jobs.Dequeue();
-            if (chunkJob.Handle.IsCompleted)
+            var mj = meshingJobs.Dequeue();
+            mj.HandleJobCompletion();
+            if (mj.IsCompleted)
             {
-                chunkJob.Handle.Complete();
-                var view = ChunkViews[chunkJob.Id];
-                if (MeshingType == 1)
-                {
-                    var job = (JobNaiveCulling)chunkJob.Job;
-                    view.AssignMesh(job.MeshData);
-                    job.Dispose();
-                }
-                else if (MeshingType == 2)
-                {
-                    var job = (JobGreedyMeshing)chunkJob.Job;
-                    view.AssignMesh(job.MeshData);
-                    job.Dispose();
-                }
-                
+                var bakingJob = new BatchBakingJob(mj.Meshes);
+                bakingJobs.Enqueue(bakingJob);
             }
             else
             {
-                jobs.Enqueue(chunkJob);
+                meshingJobs.Enqueue(mj);
             }
-            elapsed = Time.realtimeSinceStartup - start;
+        }
+        if (bakingJobs.Count > 0)
+        {
+            var bj = bakingJobs.Dequeue();
+            if (bj.Handle.IsCompleted)
+            {
+                bj.Handle.Complete();
+                bj.Ids.Dispose();
+                foreach (var p in ChunkViews)
+                {
+                    p.Value.SetBakedMesh();
+                }
+            }
+            else
+            {
+                bakingJobs.Enqueue(bj);
+            }
         }
     }
 
-    private void ScheduleMeshJob(ChunkId id)
+    private void DoSyncMeshing(Queue<ChunkId> ids)
     {
-        var mesh = new NativeMeshData
+        while (ids.Count > 0)
         {
-            Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-            Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-            Indices = new NativeArray<int>(2, Allocator.TempJob)
-        };
-        var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-        data.CopyFrom(ChunkDatas[id].Voxels);
-        var job = new JobNaiveCulling
-        {
-            Data = data,
-            MeshData = mesh
-        };
-        jobs.Enqueue(new ChunkJob { Id = id, Job = job, Handle = job.Schedule() });
+            var id = ids.Dequeue();
+            ChunkViews[id].RenderToMesh(id, ChunkDatas[id]);
+        }
     }
-    private void ScheduleGreedyMeshingJob(ChunkId id)
+    private void ScheduleMeshJob(Queue<ChunkId> ids)
     {
-        var mesh = new NativeMeshData
+        var dataArray = Mesh.AllocateWritableMeshData(ids.Count);
+        var batchJob = new BatchMeshingJob(ids.Count)
         {
-            Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-            Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-            Indices = new NativeArray<int>(2, Allocator.TempJob)
+            Array = dataArray,
+            Manager = this
         };
-        var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-        data.CopyFrom(ChunkDatas[id].Voxels);
-        var job = new JobGreedyMeshing
+        var index = 0;
+        while (ids.Count > 0)
         {
-            Data = data,
-            MeshData = mesh
+            var id = ids.Dequeue();
+            batchJob.Meshes[index] = ChunkViews[id].GetMesh();
+            var mesh = new NativeMeshData
+            {
+                Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                Indices = new NativeArray<int>(2, Allocator.TempJob)
+            };
+            var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            data.CopyFrom(ChunkDatas[id].Voxels);
+            var job = new JobNaiveCulling
+            {
+                Data = data,
+                MeshData = mesh
+            };
+            var apply = new JobApplyMesh
+            {
+                Data = mesh,
+                MeshData = dataArray[index]
+            };
+            batchJob.Jobs.Enqueue(new MeshingJob { Id = id, Job = job, Handle = apply.Schedule(job.Schedule()) });
+            index++;
+        }
+        meshingJobs.Enqueue(batchJob);
+    }
+    private void ScheduleGreedyMeshingJob(Queue<ChunkId> ids)
+    {
+        var dataArray = Mesh.AllocateWritableMeshData(ids.Count);
+        var batchJob = new BatchMeshingJob(ids.Count)
+        {
+            Array = dataArray,
+            Manager = this
         };
-        jobs.Enqueue(new ChunkJob { Id = id, Job = job, Handle = job.Schedule() });
+        var index = 0;
+        while (ids.Count > 0)
+        {
+            var id = ids.Dequeue();
+            batchJob.Meshes[index] = ChunkViews[id].GetMesh();
+            var mesh = new NativeMeshData
+            {
+                Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                Indices = new NativeArray<int>(2, Allocator.TempJob)
+            };
+            var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            data.CopyFrom(ChunkDatas[id].Voxels);
+            var job = new JobGreedyMeshing
+            {
+                Data = data,
+                MeshData = mesh
+            };
+            var apply = new JobApplyMesh
+            {
+                Data = mesh,
+                MeshData = dataArray[index]
+            };
+            batchJob.Jobs.Enqueue(new MeshingJob { Id = id, Job = job, Handle = apply.Schedule(job.Schedule()) });
+            index++;
+        }
+        meshingJobs.Enqueue(batchJob);
     }
 }

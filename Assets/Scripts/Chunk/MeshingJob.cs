@@ -1,7 +1,7 @@
 ﻿using Unity.Jobs;
 
 
-public class ChunkJob
+public class MeshingJob
 {
     public ChunkId Id;
     public JobHandle Handle;

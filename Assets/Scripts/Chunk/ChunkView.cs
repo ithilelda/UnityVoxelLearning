@@ -39,6 +39,9 @@ public class ChunkView : MonoBehaviour
         meshRenderer.material = material;
     }
 
+    public Mesh GetMesh() => filter.mesh;
+    public void SetBakedMesh() => meshCollider.sharedMesh = filter.mesh;
+
     public void AssignMesh(MeshData data)
     {
         var mesh = filter.mesh;
@@ -47,19 +50,7 @@ public class ChunkView : MonoBehaviour
         mesh.SetTriangles(data.Triangles.ToArray(), 0);
         mesh.RecalculateNormals();
         meshCollider.sharedMesh = mesh;
-    }
-    public void AssignMesh(NativeMeshData data)
-    {
-        //Debug.Log($"{data.Indices[0]}, {data.Indices[1]}");
-        var mesh = filter.mesh;
-        mesh.Clear();
-        mesh.SetVertexBufferParams(data.Indices[0], VertexAttributes);
-        mesh.SetVertexBufferData(data.Vertices, 0, 0, data.Indices[0]);
-        mesh.SetIndexBufferParams(data.Indices[1], IndexFormat.UInt32);
-        mesh.SetIndexBufferData(data.Triangles, 0, 0, data.Indices[1]);
-        mesh.SetSubMesh(0, new SubMeshDescriptor(0, data.Indices[1]));
-    }
-    
+    }    
     public void RenderToMesh(ChunkId id, ChunkData data)
     {
         var mesh = MeshData.GenerateMesh(id, data);

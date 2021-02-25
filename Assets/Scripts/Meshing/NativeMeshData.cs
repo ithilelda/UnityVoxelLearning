@@ -37,7 +37,7 @@ public partial struct NativeMeshData
         {
             case Facing.FRONT:
                 // to understand all these cryptic vector math, just draw a cube and set the bottom left inner most corner as your origin
-                // You will see the 4 vertices each face has, and how the size vector's elements should be applied.
+                // You will see the 4 0ces each face has, and how the size vector's elements should be applied.
                 AddVertex(Indices[0]++, offset + Vector3.forward, Vector3.forward, Vector2.zero);
                 AddVertex(Indices[0]++, offset + Vector3.right * size.x + Vector3.forward, Vector3.forward, Vector2.right * size.x);
                 AddVertex(Indices[0]++, offset + Vector3.right * size.x + Vector3.up * size.y + Vector3.forward, Vector3.forward, Vector2.right * size.x + Vector2.up * size.y);

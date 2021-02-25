@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -192,101 +188,12 @@ public static class MeshHelper
     // this method does not take neighboring chunks into consideration, so will always see border faces as not obscured (returning false).
     public static bool FaceIsObscuredJobs(NativeArray<uint> data, int4 index, int4 direction)
     {
-        return FaceIsObscuredJobsImpl(data, index, direction);
-    }
-    public static bool FaceIsObscuredParallelJobs(NativeArray<uint> data, int4 index, int4 direction, int batchIndex)
-    {
-        var bi = batchIndex * GameDefines.CHUNK_SIZE_CUBED;
-        return FaceIsObscuredJobsImpl(data, index, direction, bi);
-    }
-    private static bool FaceIsObscuredJobsImpl(NativeArray<uint> data, int4 index, int4 direction, int baseIndex=0)
-    {
         var chunkShift = ChunkData.GetChunkShift(index + direction);
         if (chunkShift.Equals(int4.zero))
         {
-            return data[baseIndex + ChunkData.FlattenIndex(index + direction)] > 0u;
+            return data[ChunkData.FlattenIndex(index + direction)] > 0u;
         }
         return false;
-    }
-
-    public static void SetUpMeshDataParallelJobs(ref NativeMeshData data, int batchIndex)
-    {
-        var vertIPos = 2 * batchIndex;
-        var triIPos = vertIPos + 1;
-        data.Indices[vertIPos] = batchIndex * GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT;
-        data.Indices[triIPos] = batchIndex * GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT;
-    }
-    public static void AddFaceToMeshDataParallelJobs(ref NativeMeshData data, int batchIndex, Vector3 offset, Facing facing, Vector3 size)
-    {
-        var vertIPos = 2 * batchIndex;
-        var triIPos = vertIPos + 1;
-        AddFaceToMeshDataImpl(ref data, vertIPos, triIPos, offset, facing, size);
-    }
-    public static void AddFaceToMeshDataJobs(ref NativeMeshData data, Vector3 offset, Facing facing, Vector3 size)
-    {
-        AddFaceToMeshDataImpl(ref data, 0, 1, offset, facing, size);
-    }
-    private static void AddFaceToMeshDataImpl(ref NativeMeshData data, int verti, int trii, Vector3 offset, Facing facing, Vector3 size)
-    {
-        uint cp = (uint)data.Indices[verti];
-        data.Triangles[data.Indices[trii]++] = cp + 0;
-        data.Triangles[data.Indices[trii]++] = cp + 1;
-        data.Triangles[data.Indices[trii]++] = cp + 2;
-        data.Triangles[data.Indices[trii]++] = cp + 0;
-        data.Triangles[data.Indices[trii]++] = cp + 2;
-        data.Triangles[data.Indices[trii]++] = cp + 3;
-
-        switch (facing)
-        {
-            case Facing.FRONT:
-                // to understand all these cryptic vector math, just draw a cube and set the bottom left inner most corner as your origin
-                // You will see the 4 vertices each face has, and how the size vector's elements should be applied.
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.forward, Vector3.forward, Vector2.zero);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right * size.x + Vector3.forward, Vector3.forward, Vector2.right * size.x);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right * size.x + Vector3.up * size.y + Vector3.forward, Vector3.forward, Vector2.right * size.x + Vector2.up * size.y);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up * size.y + Vector3.forward, Vector3.forward, Vector2.up * size.y);
-                break;
-            case Facing.BACK:
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.zero, Vector3.back, Vector2.zero);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up * size.y, Vector3.back, Vector2.up * size.y);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up * size.y + Vector3.right * size.x, Vector3.back, Vector2.right * size.x + Vector2.up * size.y);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right * size.x, Vector3.back, Vector2.right * size.x);
-                break;
-            case Facing.TOP:
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up, Vector3.up, Vector2.zero);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up + Vector3.forward * size.z, Vector3.up, Vector2.up * size.z);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right * size.x + Vector3.up + Vector3.forward * size.z, Vector3.up, Vector2.right * size.x + Vector2.up * size.z);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up + Vector3.right * size.x, Vector3.up, Vector2.right * size.x);
-                break;
-            case Facing.BOTTOM:
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.zero, Vector3.down, Vector2.zero);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right * size.x, Vector3.down, Vector3.right * size.x);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right * size.x + Vector3.forward * size.z, Vector3.down, Vector2.right * size.x + Vector2.up * size.z);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.forward * size.z, Vector3.down, Vector2.up * size.z);
-                break;
-            case Facing.RIGHT:
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right, Vector3.right, Vector2.zero);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up * size.y + Vector3.right, Vector3.right, Vector2.up * size.y);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right + Vector3.up * size.y + Vector3.forward * size.z, Vector3.right, Vector2.right * size.z + Vector2.up * size.y);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.right + Vector3.forward * size.z, Vector3.right, Vector2.right * size.z);
-                break;
-            case Facing.LEFT:
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.zero, Vector3.left, Vector2.zero);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.forward * size.z, Vector3.left, Vector2.right * size.z);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up * size.y + Vector3.forward * size.z, Vector3.left, Vector2.right * size.z + Vector2.up * size.y);
-                AddVertex(ref data, data.Indices[verti]++, offset + Vector3.up * size.y, Vector3.left, Vector2.up * size.y);
-                break;
-            default:
-                break;
-        }
-    }
-    private static void AddVertex(ref NativeMeshData data, int index, Vector3 position, Vector3 normal, Vector2 uv)
-    {
-        var curV = data.Vertices[index];
-        curV.Position = position;
-        curV.Normal = normal;
-        curV.UV = uv;
-        data.Vertices[index] = curV;
     }
 }
 

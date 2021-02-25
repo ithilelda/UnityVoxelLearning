@@ -32,27 +32,27 @@ public struct JobNaiveCulling : IJob
                     {
                         var index = new int4(x, y, z, 0);
                         var pos = new Vector3(x, y, z);
-                        if (!MeshHelper.FaceIsObscuredWithPerimeterJobs(Data, index, MeshHelper.Forward))
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Forward))
                         {
                             MeshData.AddFace(pos, Facing.FRONT, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredWithPerimeterJobs(Data, index, MeshHelper.Back))
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Back))
                         {
                             MeshData.AddFace(pos, Facing.BACK, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredWithPerimeterJobs(Data, index, MeshHelper.Up))
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Up))
                         {
                             MeshData.AddFace(pos, Facing.TOP, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredWithPerimeterJobs(Data, index, MeshHelper.Down))
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Down))
                         {
                             MeshData.AddFace(pos, Facing.BOTTOM, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredWithPerimeterJobs(Data, index, MeshHelper.Right))
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Right))
                         {
                             MeshData.AddFace(pos, Facing.RIGHT, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredWithPerimeterJobs(Data, index, MeshHelper.Left))
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Left))
                         {
                             MeshData.AddFace(pos, Facing.LEFT, Vector3.one);
                         }
