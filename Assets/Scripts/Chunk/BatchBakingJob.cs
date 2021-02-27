@@ -1,22 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using Unity.Jobs;
 using Unity.Collections;
 
 
-public class BatchBakingJob
+public class BatchBakingJob : IBatchJob
 {
-    public NativeArray<int> Ids;
-    public List<ChunkId> ChunkIds;
-    public JobHandle Handle;
+    public bool IsCompleted { get => _isCompleted; }
 
-    public BatchBakingJob(Mesh[] meshes, List<ChunkId> chunkIds)
+    private bool _isCompleted = false;
+    private NativeArray<int> ids;
+    private JobHandle handle;
+    private ChunkManager manager;
+    private List<ChunkId> chunkIds;
+
+    public BatchBakingJob(Mesh[] meshes, List<ChunkId> chunkIds, ChunkManager manager)
     {
-        ChunkIds = chunkIds;
+        this.manager = manager;
+        this.chunkIds = chunkIds;
         var ids = new NativeArray<int>(meshes.Length, Allocator.Persistent);
         for (int i = 0; i < meshes.Length; i++)
         {
@@ -26,8 +27,25 @@ public class BatchBakingJob
         {
             MeshIds = ids
         };
-        Ids = ids;
-        Handle = job.Schedule(meshes.Length, 8);
+        this.ids = ids;
+        handle = job.Schedule(meshes.Length, 16);
+    }
+    public void Run()
+    {
+        if (handle.IsCompleted)
+        {
+            handle.Complete();
+            ids.Dispose();
+            _isCompleted = true;
+        }
+    }
+    public IBatchJob OnCompletion()
+    {
+        foreach (var id in chunkIds)
+        {
+            manager.ChunkViews[id].SetBakedMesh();
+        }
+        return null;
     }
 }
 

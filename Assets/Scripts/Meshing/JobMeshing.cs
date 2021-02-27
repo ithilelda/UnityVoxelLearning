@@ -9,15 +9,15 @@ using Unity.Burst;
 public struct JobMeshing : IJob
 {
     [ReadOnly]
-    public NativeArray<uint> Data;
+    public NativeArray<uint> InputData;
     public int MeshingType;
 
-    public NativeMeshData MeshData;
+    public NativeMeshData OutputData;
 
     public void Dispose()
     {
-        Data.Dispose();
-        MeshData.Dispose();
+        InputData.Dispose();
+        OutputData.Dispose();
     }
 
     public void Execute()
@@ -34,34 +34,34 @@ public struct JobMeshing : IJob
             {
                 for (var z = 0; z < GameDefines.CHUNK_SIZE; z++)
                 {
-                    var voxelType = Data[ChunkData.FlattenIndex(x, y, z)];
+                    var voxelType = InputData[ChunkData.FlattenIndex(x, y, z)];
                     if (voxelType > 0u)
                     {
                         var index = new int4(x, y, z, 0);
                         var pos = new Vector3(x, y, z);
-                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Forward))
+                        if (!MeshHelper.FaceIsObscuredJobs(InputData, index, MeshHelper.Forward))
                         {
-                            MeshData.AddFace(pos, Facing.FRONT, Vector3.one);
+                            OutputData.AddFace(pos, Facing.FRONT, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Back))
+                        if (!MeshHelper.FaceIsObscuredJobs(InputData, index, MeshHelper.Back))
                         {
-                            MeshData.AddFace(pos, Facing.BACK, Vector3.one);
+                            OutputData.AddFace(pos, Facing.BACK, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Up))
+                        if (!MeshHelper.FaceIsObscuredJobs(InputData, index, MeshHelper.Up))
                         {
-                            MeshData.AddFace(pos, Facing.TOP, Vector3.one);
+                            OutputData.AddFace(pos, Facing.TOP, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Down))
+                        if (!MeshHelper.FaceIsObscuredJobs(InputData, index, MeshHelper.Down))
                         {
-                            MeshData.AddFace(pos, Facing.BOTTOM, Vector3.one);
+                            OutputData.AddFace(pos, Facing.BOTTOM, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Right))
+                        if (!MeshHelper.FaceIsObscuredJobs(InputData, index, MeshHelper.Right))
                         {
-                            MeshData.AddFace(pos, Facing.RIGHT, Vector3.one);
+                            OutputData.AddFace(pos, Facing.RIGHT, Vector3.one);
                         }
-                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Left))
+                        if (!MeshHelper.FaceIsObscuredJobs(InputData, index, MeshHelper.Left))
                         {
-                            MeshData.AddFace(pos, Facing.LEFT, Vector3.one);
+                            OutputData.AddFace(pos, Facing.LEFT, Vector3.one);
                         }
                     }
                 }
@@ -90,10 +90,10 @@ public struct JobMeshing : IJob
                     for (startPos[axis2] = 0; startPos[axis2] < GameDefines.CHUNK_SIZE; startPos[axis2]++)
                     {
                         // this voxel at this position is now the candidate for a merge, so we call it the start.
-                        var startVoxel = Data[ChunkData.FlattenIndex(startPos)];
+                        var startVoxel = InputData[ChunkData.FlattenIndex(startPos)];
                         var startIndex = MeshHelper.Flatten2DIndexJobs(startPos[axis1], startPos[axis2]);
                         // if the voxel has been merged, or it is air, or the face we are working on is obscured, we skip it.
-                        if (merged[startIndex] || startVoxel == 0u || MeshHelper.FaceIsObscuredJobs(Data, startPos, direction))
+                        if (merged[startIndex] || startVoxel == 0u || MeshHelper.FaceIsObscuredJobs(InputData, startPos, direction))
                         {
                             continue;
                         }
@@ -149,7 +149,7 @@ public struct JobMeshing : IJob
                         quadSize[axis1] = curPos[axis1] - startPos[axis1];
 
                         // then we add the quad to our mesh.
-                        MeshData.AddFace(new Vector3(startPos.x, startPos.y, startPos.z), (Facing)face, quadSize);
+                        OutputData.AddFace(new Vector3(startPos.x, startPos.y, startPos.z), (Facing)face, quadSize);
 
                         // finally we mark the voxels that make up the quad merged.
                         for (int i = 0; i < quadSize[axis1]; i++)
@@ -174,8 +174,8 @@ public struct JobMeshing : IJob
      */
     public bool IsMergeable(int4 curPos, uint targetVoxel, int4 direction)
     {
-        var curVoxel = Data[ChunkData.FlattenIndex(curPos)];
-        return curVoxel != 0u && curVoxel == targetVoxel && !MeshHelper.FaceIsObscuredJobs(Data, curPos, direction);
+        var curVoxel = InputData[ChunkData.FlattenIndex(curPos)];
+        return curVoxel != 0u && curVoxel == targetVoxel && !MeshHelper.FaceIsObscuredJobs(InputData, curPos, direction);
     }
 }
 

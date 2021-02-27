@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Unity.Jobs;
 using Unity.Collections;
@@ -15,12 +16,8 @@ public class ChunkManager : MonoBehaviour
     public bool fullUpdate;
     public float frequency;
 
-    private readonly Queue<ChunkId> firstDirtyChunks = new Queue<ChunkId>();
-    private readonly Queue<ChunkId> secondDirtyChunks = new Queue<ChunkId>();
-    private bool dirtyQueueFirst;
-
-    private BatchMeshingJob meshingJob;
-    private readonly Queue<BatchBakingJob> bakingJobs = new Queue<BatchBakingJob>();
+    private readonly DoubleQueue<ChunkId> dirtyChunks = new DoubleQueue<ChunkId>();
+    private readonly DoubleQueue<IBatchJob> batchJobs = new DoubleQueue<IBatchJob>();
 
     public static ChunkId FromWorldPos(int x, int y, int z)
     {
@@ -30,30 +27,6 @@ public class ChunkManager : MonoBehaviour
     {
         return FromWorldPos(index.x, index.y, index.z);
     }
-
-    public Queue<ChunkId> CurrentDirtyQueue
-    {
-        get => dirtyQueueFirst ? firstDirtyChunks : secondDirtyChunks;
-    }
-    public bool EnqueueDirtyChunk(ChunkId id)
-    {
-        Queue<ChunkId> dc = dirtyQueueFirst ? secondDirtyChunks : firstDirtyChunks;
-        if (dc.Contains(id))
-        {
-            return false;
-        }
-        else
-        {
-            dc.Enqueue(id);
-            return true;
-        }
-    }
-    public ChunkId DequeueDirtyChunk()
-    {
-        Queue<ChunkId> dc = dirtyQueueFirst ? firstDirtyChunks : secondDirtyChunks;
-        return dc.Dequeue();
-    }
-
     public uint this[int x, int y, int z]
     {
         get
@@ -67,7 +40,7 @@ public class ChunkManager : MonoBehaviour
             var id = FromWorldPos(x, y, z);
             var chunk = ChunkDatas[id];
             chunk[x & GameDefines.CHUNK_MASK, y & GameDefines.CHUNK_MASK, z & GameDefines.CHUNK_MASK] = value;
-            EnqueueDirtyChunk(id);
+            dirtyChunks.Enqueue(id);
         }
     }
     public uint this[Vector3Int index]
@@ -83,7 +56,7 @@ public class ChunkManager : MonoBehaviour
             var id = FromWorldPos(index);
             var chunk = ChunkDatas[id];
             chunk[index.x & GameDefines.CHUNK_MASK, index.y & GameDefines.CHUNK_MASK, index.z & GameDefines.CHUNK_MASK] = value;
-            EnqueueDirtyChunk(id);
+            dirtyChunks.Enqueue(id);
         }
     }
 
@@ -119,7 +92,7 @@ public class ChunkManager : MonoBehaviour
         ChunkDatas.Add(id, chunkData);
         var chunkView = go.AddComponent<ChunkView>();
         ChunkViews.Add(id, chunkView);
-        EnqueueDirtyChunk(id);
+        dirtyChunks.Enqueue(id);
     }
 
     private void Start()
@@ -148,14 +121,14 @@ public class ChunkManager : MonoBehaviour
         {
             foreach (var p in ChunkDatas)
             {
-                EnqueueDirtyChunk(p.Key);
+                dirtyChunks.Enqueue(p.Key);
             }
         }
     }
     private void LateUpdate()
     {
         var start = Time.realtimeSinceStartup;
-        if (CurrentDirtyQueue.Count > 0 && meshingJob == null)
+        if (dirtyChunks.CurrentCount > 0)
         {
             DoMeshGeneration();
         }
@@ -165,7 +138,7 @@ public class ChunkManager : MonoBehaviour
             Debug.Log($"setup meshing jobs: {end - start}");
             fullUpdate = false;
         }
-        dirtyQueueFirst = !dirtyQueueFirst;
+        dirtyChunks.Swap();
     }
 
     private void DoMeshGeneration()
@@ -173,11 +146,12 @@ public class ChunkManager : MonoBehaviour
         switch (MeshingType)
         {
             case 0:
-                DoSyncMeshing(CurrentDirtyQueue);
+                DoSyncMeshing(dirtyChunks.Current);
                 break;
             case 1:
             case 2:
-                meshingJob = new BatchMeshingJob(CurrentDirtyQueue, ChunkDatas, MeshingType);
+                batchJobs.Enqueue(new BatchMeshingJob(dirtyChunks.Current, MeshingType, this));
+                dirtyChunks.ClearCurrent();
                 break;
             default:
                 break;
@@ -185,36 +159,21 @@ public class ChunkManager : MonoBehaviour
     }
     private void HandleJobCompletion()
     {
-        meshingJob?.HandleJobCompletion();
-        if (meshingJob?.IsCompleted == true)
+        while(batchJobs.CurrentCount > 0)
         {
-            var meshes = new Mesh[meshingJob.Ids.Count];
-            for (int i = 0; i < meshingJob.Ids.Count; i++)
+            var bj = batchJobs.Dequeue();
+            bj.Run();
+            if (bj.IsCompleted)
             {
-                meshes[i] = ChunkViews[meshingJob.Ids[i]].GetMesh();
-            }
-            Mesh.ApplyAndDisposeWritableMeshData(meshingJob.Array, meshes);
-            var bakingJob = new BatchBakingJob(meshes, meshingJob.Ids);
-            bakingJobs.Enqueue(bakingJob);
-            meshingJob = null;
-        }
-        if (bakingJobs.Count > 0)
-        {
-            var bj = bakingJobs.Dequeue();
-            if (bj.Handle.IsCompleted)
-            {
-                bj.Handle.Complete();
-                bj.Ids.Dispose();
-                foreach (var id in bj.ChunkIds)
-                {
-                    ChunkViews[id].SetBakedMesh();
-                }
+                var newJob = bj.OnCompletion();
+                if (newJob != null) batchJobs.Enqueue(newJob);
             }
             else
             {
-                bakingJobs.Enqueue(bj);
+                batchJobs.Enqueue(bj);
             }
         }
+        batchJobs.Swap();
     }
 
     private void DoSyncMeshing(Queue<ChunkId> ids)
