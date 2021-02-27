@@ -15,9 +15,12 @@ public class ChunkManager : MonoBehaviour
     public bool fullUpdate;
     public float frequency;
 
-    private readonly Queue<BatchMeshingJob> meshingJobs = new Queue<BatchMeshingJob>();
+    private readonly Queue<ChunkId> firstDirtyChunks = new Queue<ChunkId>();
+    private readonly Queue<ChunkId> secondDirtyChunks = new Queue<ChunkId>();
+    private bool dirtyQueueFirst;
+
+    private BatchMeshingJob meshingJob;
     private readonly Queue<BatchBakingJob> bakingJobs = new Queue<BatchBakingJob>();
-    private readonly Queue<ChunkId> dirtyChunks = new Queue<ChunkId>();
 
     public static ChunkId FromWorldPos(int x, int y, int z)
     {
@@ -26,6 +29,29 @@ public class ChunkManager : MonoBehaviour
     public static ChunkId FromWorldPos(Vector3Int index)
     {
         return FromWorldPos(index.x, index.y, index.z);
+    }
+
+    public Queue<ChunkId> CurrentDirtyQueue
+    {
+        get => dirtyQueueFirst ? firstDirtyChunks : secondDirtyChunks;
+    }
+    public bool EnqueueDirtyChunk(ChunkId id)
+    {
+        Queue<ChunkId> dc = dirtyQueueFirst ? secondDirtyChunks : firstDirtyChunks;
+        if (dc.Contains(id))
+        {
+            return false;
+        }
+        else
+        {
+            dc.Enqueue(id);
+            return true;
+        }
+    }
+    public ChunkId DequeueDirtyChunk()
+    {
+        Queue<ChunkId> dc = dirtyQueueFirst ? firstDirtyChunks : secondDirtyChunks;
+        return dc.Dequeue();
     }
 
     public uint this[int x, int y, int z]
@@ -38,9 +64,10 @@ public class ChunkManager : MonoBehaviour
 
         set
         {
-            var chunk = ChunkDatas[FromWorldPos(x, y, z)];
+            var id = FromWorldPos(x, y, z);
+            var chunk = ChunkDatas[id];
             chunk[x & GameDefines.CHUNK_MASK, y & GameDefines.CHUNK_MASK, z & GameDefines.CHUNK_MASK] = value;
-            chunk.IsDirty = true;
+            EnqueueDirtyChunk(id);
         }
     }
     public uint this[Vector3Int index]
@@ -53,9 +80,10 @@ public class ChunkManager : MonoBehaviour
 
         set
         {
-            var chunk = ChunkDatas[FromWorldPos(index)];
+            var id = FromWorldPos(index);
+            var chunk = ChunkDatas[id];
             chunk[index.x & GameDefines.CHUNK_MASK, index.y & GameDefines.CHUNK_MASK, index.z & GameDefines.CHUNK_MASK] = value;
-            chunk.IsDirty = true;
+            EnqueueDirtyChunk(id);
         }
     }
 
@@ -88,10 +116,10 @@ public class ChunkManager : MonoBehaviour
                 }
             }
         }
-        chunkData.IsDirty = true;
         ChunkDatas.Add(id, chunkData);
         var chunkView = go.AddComponent<ChunkView>();
         ChunkViews.Add(id, chunkView);
+        EnqueueDirtyChunk(id);
     }
 
     private void Start()
@@ -109,8 +137,8 @@ public class ChunkManager : MonoBehaviour
                 }
             }
         }
-        ComputeShader shader = Resources.Load<ComputeShader>("ComputeShaders/MeshGeneration");
-        Debug.Log(shader.ToString());
+        //ComputeShader shader = Resources.Load<ComputeShader>("ComputeShaders/MeshGeneration");
+        //Debug.Log(shader.ToString());
     }
 
     private void Update()
@@ -120,64 +148,55 @@ public class ChunkManager : MonoBehaviour
         {
             foreach (var p in ChunkDatas)
             {
-                p.Value.IsDirty = true;
+                EnqueueDirtyChunk(p.Key);
             }
-        }
-        var start = Time.realtimeSinceStartup;
-        DoMeshGeneration();
-        var end = Time.realtimeSinceStartup;
-        if (fullUpdate)
-        {
-            Debug.Log($"setup jobs: {end - start}");
-            fullUpdate = false;
         }
     }
     private void LateUpdate()
     {
-        
+        var start = Time.realtimeSinceStartup;
+        if (CurrentDirtyQueue.Count > 0 && meshingJob == null)
+        {
+            DoMeshGeneration();
+        }
+        var end = Time.realtimeSinceStartup;
+        if (fullUpdate)
+        {
+            Debug.Log($"setup meshing jobs: {end - start}");
+            fullUpdate = false;
+        }
+        dirtyQueueFirst = !dirtyQueueFirst;
     }
 
     private void DoMeshGeneration()
     {
-        foreach (var p in ChunkDatas)
+        switch (MeshingType)
         {
-            if (p.Value.IsDirty)
-            {
-                dirtyChunks.Enqueue(p.Key);
-                p.Value.IsDirty = false;
-            }
-        }
-        if (dirtyChunks.Count > 0)
-        {
-            switch (MeshingType)
-            {
-                case 0:
-                    DoSyncMeshing(dirtyChunks);
-                    break;
-                case 1:
-                    ScheduleMeshJob(dirtyChunks);
-                    break;
-                case 2:
-                    ScheduleGreedyMeshingJob(dirtyChunks);
-                    break;
-            }
+            case 0:
+                DoSyncMeshing(CurrentDirtyQueue);
+                break;
+            case 1:
+            case 2:
+                meshingJob = new BatchMeshingJob(CurrentDirtyQueue, ChunkDatas, MeshingType);
+                break;
+            default:
+                break;
         }
     }
     private void HandleJobCompletion()
     {
-        if (meshingJobs.Count > 0)
+        meshingJob?.HandleJobCompletion();
+        if (meshingJob?.IsCompleted == true)
         {
-            var mj = meshingJobs.Dequeue();
-            mj.HandleJobCompletion();
-            if (mj.IsCompleted)
+            var meshes = new Mesh[meshingJob.Ids.Count];
+            for (int i = 0; i < meshingJob.Ids.Count; i++)
             {
-                var bakingJob = new BatchBakingJob(mj.Meshes, mj.Ids);
-                bakingJobs.Enqueue(bakingJob);
+                meshes[i] = ChunkViews[meshingJob.Ids[i]].GetMesh();
             }
-            else
-            {
-                meshingJobs.Enqueue(mj);
-            }
+            Mesh.ApplyAndDisposeWritableMeshData(meshingJob.Array, meshes);
+            var bakingJob = new BatchBakingJob(meshes, meshingJob.Ids);
+            bakingJobs.Enqueue(bakingJob);
+            meshingJob = null;
         }
         if (bakingJobs.Count > 0)
         {
@@ -186,9 +205,9 @@ public class ChunkManager : MonoBehaviour
             {
                 bj.Handle.Complete();
                 bj.Ids.Dispose();
-                while (bj.ChunkIds.Count > 0)
+                foreach (var id in bj.ChunkIds)
                 {
-                    ChunkViews[bj.ChunkIds.Dequeue()].SetBakedMesh();
+                    ChunkViews[id].SetBakedMesh();
                 }
             }
             else
@@ -205,79 +224,5 @@ public class ChunkManager : MonoBehaviour
             var id = ids.Dequeue();
             ChunkViews[id].RenderToMesh(id, ChunkDatas[id]);
         }
-    }
-    private void ScheduleMeshJob(Queue<ChunkId> ids)
-    {
-        var dataArray = Mesh.AllocateWritableMeshData(ids.Count);
-        var batchJob = new BatchMeshingJob(ids.Count)
-        {
-            Array = dataArray,
-            Manager = this
-        };
-        var index = 0;
-        while (ids.Count > 0)
-        {
-            var id = ids.Dequeue();
-            batchJob.Ids.Enqueue(id);
-            batchJob.Meshes[index] = ChunkViews[id].GetMesh();
-            var mesh = new NativeMeshData
-            {
-                Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-                Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-                Indices = new NativeArray<int>(2, Allocator.TempJob)
-            };
-            var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            data.CopyFrom(ChunkDatas[id].Voxels);
-            var job = new JobNaiveCulling
-            {
-                Data = data,
-                MeshData = mesh
-            };
-            var apply = new JobApplyMesh
-            {
-                Data = mesh,
-                MeshData = dataArray[index]
-            };
-            batchJob.Jobs.Enqueue(new MeshingJob { Id = id, Job = job, Handle = apply.Schedule(job.Schedule()) });
-            index++;
-        }
-        meshingJobs.Enqueue(batchJob);
-    }
-    private void ScheduleGreedyMeshingJob(Queue<ChunkId> ids)
-    {
-        var dataArray = Mesh.AllocateWritableMeshData(ids.Count);
-        var batchJob = new BatchMeshingJob(ids.Count)
-        {
-            Array = dataArray,
-            Manager = this
-        };
-        var index = 0;
-        while (ids.Count > 0)
-        {
-            var id = ids.Dequeue();
-            batchJob.Ids.Enqueue(id);
-            batchJob.Meshes[index] = ChunkViews[id].GetMesh();
-            var mesh = new NativeMeshData
-            {
-                Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-                Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-                Indices = new NativeArray<int>(2, Allocator.TempJob)
-            };
-            var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            data.CopyFrom(ChunkDatas[id].Voxels);
-            var job = new JobGreedyMeshing
-            {
-                Data = data,
-                MeshData = mesh
-            };
-            var apply = new JobApplyMesh
-            {
-                Data = mesh,
-                MeshData = dataArray[index]
-            };
-            batchJob.Jobs.Enqueue(new MeshingJob { Id = id, Job = job, Handle = apply.Schedule(job.Schedule()) });
-            index++;
-        }
-        meshingJobs.Enqueue(batchJob);
     }
 }

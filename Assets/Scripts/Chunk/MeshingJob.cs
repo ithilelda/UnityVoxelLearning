@@ -5,6 +5,5 @@ public class MeshingJob
 {
     public ChunkId Id;
     public JobHandle Handle;
-    public IJob Job;
+    public JobMeshing Job;
 }
-

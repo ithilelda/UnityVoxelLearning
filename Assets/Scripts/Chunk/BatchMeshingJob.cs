@@ -6,50 +6,68 @@ using UnityEngine;
 
 public class BatchMeshingJob
 {
-    public ChunkManager Manager;
-    public Queue<MeshingJob> Jobs = new Queue<MeshingJob>();
-    public Queue<ChunkId> Ids = new Queue<ChunkId>();
     public Mesh.MeshDataArray Array;
-    public Mesh[] Meshes;
-    public bool IsCompleted;
+    public bool IsCompleted = false;
+    public List<ChunkId> Ids = new List<ChunkId>();
 
-    public BatchMeshingJob(int num)
+    private readonly Queue<MeshingJob> firstJobs = new Queue<MeshingJob>();
+    private readonly Queue<MeshingJob> secondJobs = new Queue<MeshingJob>();
+    private bool isFirst;
+
+    public BatchMeshingJob(Queue<ChunkId> ids, Dictionary<ChunkId, ChunkData> chunkDatas, int meshingType)
     {
-        Meshes = new Mesh[num];
+        Array = Mesh.AllocateWritableMeshData(ids.Count);
+        var index = 0;
+        while (ids.Count > 0)
+        {
+            var id = ids.Dequeue();
+            Ids.Add(id);
+            var mesh = new NativeMeshData
+            {
+                Vertices = new NativeArray<VertexData>(GameDefines.MAXIMUM_VERTEX_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                Triangles = new NativeArray<uint>(GameDefines.MAXIMUM_TRIANGLE_ARRAY_COUNT, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                Indices = new NativeArray<int>(2, Allocator.TempJob)
+            };
+            var data = new NativeArray<uint>(GameDefines.CHUNK_SIZE_CUBED, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            data.CopyFrom(chunkDatas[id].Voxels);
+            var job = new JobMeshing
+            {
+                Data = data,
+                MeshingType = meshingType,
+                MeshData = mesh
+            };
+            var apply = new JobApplyMesh
+            {
+                Data = mesh,
+                MeshData = Array[index]
+            };
+            firstJobs.Enqueue(new MeshingJob { Id = id, Job = job, Handle = apply.Schedule(job.Schedule()) });
+            index++;
+        }
     }
 
     public void HandleJobCompletion()
     {
-        var start = Time.realtimeSinceStartup;
-        var elapsed = 0f;
-        while (Jobs.Count > 0 && elapsed <= 0.01f)
+        var curJobs = isFirst ? firstJobs : secondJobs;
+        var nextJobs = isFirst ? secondJobs : firstJobs;
+        while (curJobs.Count > 0)
         {
-            var chunkJob = Jobs.Dequeue();
+            var chunkJob = curJobs.Dequeue();
             if (chunkJob.Handle.IsCompleted)
             {
                 chunkJob.Handle.Complete();
-                if (Manager.MeshingType == 1)
-                {
-                    var job = (JobNaiveCulling)chunkJob.Job;
-                    job.Dispose();
-                }
-                else if (Manager.MeshingType == 2)
-                {
-                    var job = (JobGreedyMeshing)chunkJob.Job;
-                    job.Dispose();
-                }
+                chunkJob.Job.Dispose();
             }
             else
             {
-                Jobs.Enqueue(chunkJob);
+                nextJobs.Enqueue(chunkJob);
             }
-            elapsed = Time.realtimeSinceStartup - start;
         }
-        if (Jobs.Count == 0)
+        if (firstJobs.Count == 0 && secondJobs.Count == 0)
         {
-            Mesh.ApplyAndDisposeWritableMeshData(Array, Meshes);
             IsCompleted = true;
         }
+        isFirst = !isFirst;
     }
 }
 

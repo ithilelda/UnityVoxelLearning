@@ -8,7 +8,6 @@ public class ChunkData : MonoBehaviour
 {
     public ChunkId ChunkId;
     public ChunkManager ChunkSystem;
-    public bool IsDirty;
 
     public uint[] Voxels = new uint[GameDefines.CHUNK_SIZE_CUBED];
 

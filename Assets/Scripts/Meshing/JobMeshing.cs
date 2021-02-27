@@ -6,10 +6,11 @@ using Unity.Burst;
 
 
 [BurstCompile]
-public struct JobGreedyMeshing : IJob
+public struct JobMeshing : IJob
 {
     [ReadOnly]
     public NativeArray<uint> Data;
+    public int MeshingType;
 
     public NativeMeshData MeshData;
 
@@ -20,6 +21,54 @@ public struct JobGreedyMeshing : IJob
     }
 
     public void Execute()
+    {
+        if (MeshingType == 1) NaiveCulling();
+        else if (MeshingType == 2) GreedyMeshing();
+    }
+
+    public void NaiveCulling()
+    {
+        for (var x = 0; x < GameDefines.CHUNK_SIZE; x++)
+        {
+            for (var y = 0; y < GameDefines.CHUNK_SIZE; y++)
+            {
+                for (var z = 0; z < GameDefines.CHUNK_SIZE; z++)
+                {
+                    var voxelType = Data[ChunkData.FlattenIndex(x, y, z)];
+                    if (voxelType > 0u)
+                    {
+                        var index = new int4(x, y, z, 0);
+                        var pos = new Vector3(x, y, z);
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Forward))
+                        {
+                            MeshData.AddFace(pos, Facing.FRONT, Vector3.one);
+                        }
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Back))
+                        {
+                            MeshData.AddFace(pos, Facing.BACK, Vector3.one);
+                        }
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Up))
+                        {
+                            MeshData.AddFace(pos, Facing.TOP, Vector3.one);
+                        }
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Down))
+                        {
+                            MeshData.AddFace(pos, Facing.BOTTOM, Vector3.one);
+                        }
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Right))
+                        {
+                            MeshData.AddFace(pos, Facing.RIGHT, Vector3.one);
+                        }
+                        if (!MeshHelper.FaceIsObscuredJobs(Data, index, MeshHelper.Left))
+                        {
+                            MeshData.AddFace(pos, Facing.LEFT, Vector3.one);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    public void GreedyMeshing()
     {
         // what 0~6 means you should check out the Facing enum. It has explanations.
         for (int face = 0; face < 6; face++)
