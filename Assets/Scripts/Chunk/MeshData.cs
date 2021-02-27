@@ -7,7 +7,7 @@ public class MeshData
     public List<Vector3> Vertices = new List<Vector3>();
     public List<int> Triangles = new List<int>();
 
-    public static MeshData GenerateMesh(ChunkId id, ChunkData chunkData)
+    public static MeshData GenerateMesh(ChunkData chunkData)
     {
         var ret = new MeshData();
 

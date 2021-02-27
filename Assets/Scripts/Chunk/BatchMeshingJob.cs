@@ -76,6 +76,10 @@ public class BatchMeshingJob : IBatchJob
             meshes[i] = manager.ChunkViews[ids[i]].GetMesh();
         }
         Mesh.ApplyAndDisposeWritableMeshData(dataArray, meshes);
+        for (int i = 0; i < meshes.Length; i++)
+        {
+            meshes[i].RecalculateBounds();
+        }
         return new BatchBakingJob(meshes, ids, manager);
     }
 }

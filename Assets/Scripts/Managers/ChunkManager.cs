@@ -116,7 +116,6 @@ public class ChunkManager : MonoBehaviour
 
     private void Update()
     {
-        HandleJobCompletion();
         if (fullUpdate)
         {
             foreach (var p in ChunkDatas)
@@ -139,6 +138,7 @@ public class ChunkManager : MonoBehaviour
             fullUpdate = false;
         }
         dirtyChunks.Swap();
+        HandleJobCompletion();
     }
 
     private void DoMeshGeneration()
@@ -181,7 +181,7 @@ public class ChunkManager : MonoBehaviour
         while (ids.Count > 0)
         {
             var id = ids.Dequeue();
-            ChunkViews[id].RenderToMesh(id, ChunkDatas[id]);
+            ChunkViews[id].RenderToMesh(ChunkDatas[id]);
         }
     }
 }

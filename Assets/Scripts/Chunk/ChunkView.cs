@@ -44,9 +44,9 @@ public class ChunkView : MonoBehaviour
         mesh.RecalculateNormals();
         meshCollider.sharedMesh = mesh;
     }    
-    public void RenderToMesh(ChunkId id, ChunkData data)
+    public void RenderToMesh(ChunkData data)
     {
-        var mesh = MeshData.GenerateMesh(id, data);
+        var mesh = MeshData.GenerateMesh(data);
         AssignMesh(mesh);
     }
 }
